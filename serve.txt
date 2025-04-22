@@ -1,0 +1,5 @@
+http://localhost/tui_calendar/
+http://localhost/tui_calendar/user/login
+http://localhost/tui_calendar/user/register
+
+http://localhost/tui_calendar/test.php

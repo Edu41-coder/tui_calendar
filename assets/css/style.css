@@ -1,0 +1,133 @@
+/* Styles personnalisés pour TUI Calendar */
+
+/* Styles généraux */
+body {
+    background-color: #f8f9fa;
+}
+
+/* Point coloré pour les calendriers et catégories */
+.color-dot {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    margin-right: 8px;
+    border: 1px solid rgba(0,0,0,0.2);
+}
+
+/* Styles pour les événements sur le calendrier */
+.tui-full-calendar-month-week-item .tui-full-calendar-weekday-event {
+    border-radius: 4px;
+}
+
+/* Amélioration du menu utilisateur */
+.list-group-item a {
+    color: #212529;
+    text-decoration: none;
+    display: block;
+}
+
+.list-group-item a:hover {
+    color: #0d6efd;
+}
+
+/* Amélioration des éléments de menu actifs */
+.list-group-item.active {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.list-group-item.active a,
+.list-group-item.active i {
+    color: white;
+}
+
+/* Styles de carte avec ombre légère */
+.card {
+    box-shadow: 0 .125rem .25rem rgba(0,0,0,.075);
+    border-radius: .5rem;
+    border: none;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0,0,0,.125);
+    padding: .75rem 1rem;
+}
+
+.card-header .fas {
+    color: #0d6efd;
+}
+
+/* Animation pour les alertes */
+.alert {
+    animation: fadeIn 0.5s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Amélioration de l'apparence du calendrier TUI */
+#calendar {
+    border-radius: .5rem;
+    overflow: hidden;
+}
+
+.toastui-calendar-today {
+    background-color: rgba(81, 92, 230, 0.05) !important;
+}
+
+.toastui-calendar-grid-cell-date {
+    font-weight: 600;
+}
+
+/* Amélioration des boutons de navigation du calendrier */
+#day-view.active, #week-view.active, #month-view.active {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+/* Amélioration des formulaires */
+.input-group-text {
+    background-color: #f8f9fa;
+}
+
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Styliser les boutons submit */
+.btn-primary {
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Style cohérent pour les icônes */
+.fas, .fa {
+    margin-right: 0.5rem;
+    width: 1.25em;
+    text-align: center;
+}
+
+/* Ajustements responsives */
+@media (max-width: 768px) {
+    .card-header h4 {
+        font-size: 1.25rem;
+    }
+    
+    .btn {
+        padding: 0.375rem 0.5rem;
+    }
+    
+    #calendar {
+        height: 600px !important;  /* Réduire la hauteur sur mobile */
+    }
+}
