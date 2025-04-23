@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const year = currentDate.getFullYear();
         
         // CORRIGÉ : enlever les barres obliques inverses
-        document.getElementById('calendar-date-header').textContent = `\${month} \${year}`.replace(/\\/g, '');
+        document.getElementById('calendar-date-header').textContent = `\${month} \${year}`.replace(/\\\\/g, '');
     }
 
     // Fonction pour mettre à jour l'état actif des boutons de vue
@@ -262,6 +262,24 @@ document.addEventListener('DOMContentLoaded', function() {
   background: linear-gradient(to right, var(--calendarColor, #333) 25%, var(--categoryColor, #999) 25%) !important;
   /* Si besoin, retirez aussi la couleur inline déjà appliquée : */
   background-color: transparent !important;
+}
+
+/* Remplacez le CSS pour la vue jour par celui-ci */
+.tui-full-calendar-day-name {
+  text-align: center !important;
+}
+
+/* Pour la vue jour spécifiquement - */
+.tui-full-calendar-dayname-container .tui-full-calendar-dayname-date,
+.tui-full-calendar-dayname-container .tui-full-calendar-dayname-name {
+  text-align: center !important;
+}
+
+/* Centrer le conteneur entier plutôt que ses parties individuellement */
+.tui-full-calendar-dayname-date-area {
+  text-align: center !important;
+  justify-content: center !important;
+  display: flex !important;
 }
 </style>
 HTML;

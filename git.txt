@@ -21,3 +21,10 @@ git status
 git add .
 git commit -m "Ajout de fonctionnalités au calendrier TUI"
 git push upstream develop
+
+
+git config --global user.email "hehermosilla@gmail.com"
+git config --global user.name "edu"
+
+git config user.email "hehermosilla@gmail.com"
+git config user.name "edu"
