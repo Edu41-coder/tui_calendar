@@ -1,0 +1,52 @@
+git init
+
+git remote add upstream https://github.com/Edu41-coder/tui_calendar.git
+
+git fetch upstream
+
+Si vous n'avez pas encore de branche locale develop, vous pouvez la créer directement à partir de la branche develop du dépôt distant :
+git checkout -b develop upstream/develop
+
+Synchronisez votre branche locale avec develop de upstream :
+git checkout develop
+git pull upstream develop
+
+
+1. Vérifier que le dépôt distant est bien configuré
+
+git remote -v
+
+Si le dépôt n'est pas configuré, ajoutez-le :
+
+git remote add origin https://github.com/Edu41-coder/tui_calendar
+
+2. Récupérer les dernières modifications
+
+git fetch origin
+
+3. Basculer sur la branche develop
+Si la branche existe déjà localement :
+
+git checkout develop
+
+Si elle n'existe pas encore localement mais existe sur le dépôt distant :
+
+git checkout -b develop origin/develop
+
+Si elle n'existe nulle part et doit être créée :
+
+git checkout -b develop
+
+git add .
+
+5. Créer un commit avec un message descriptif
+
+git commit -m "Ajout de fonctionnalités au calendrier TUI"
+
+6. Pousser vers la branche develop sur GitHub
+git push origin develop
+
+Si c'est la première fois que vous poussez cette branche :
+git push -u origin develop
+
+

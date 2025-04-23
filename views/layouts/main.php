@@ -12,9 +12,11 @@
     
     <?php if (isset($includeCalendarAssets) && $includeCalendarAssets): ?>
     <!-- TUI Calendar CSS -->
-    <link rel="stylesheet" href="https://uicdn.toast.com/calendar/latest/toastui-calendar.min.css" />
-    <link rel="stylesheet" href="https://uicdn.toast.com/tui.date-picker/latest/tui-date-picker.css" />
-    <link rel="stylesheet" href="https://uicdn.toast.com/tui.time-picker/latest/tui-time-picker.css" />
+    <link rel="stylesheet" href="/tui_calendar/assets/css/tui-calendar.css">
+    <!-- TUI Date Picker CSS -->
+    <link rel="stylesheet" href="/tui_calendar/assets/css/tui-date-picker.css">
+    <!-- TUI Time Picker CSS -->
+    <link rel="stylesheet" href="/tui_calendar/assets/css/tui-time-picker.css">
     <?php endif; ?>
     
     <!-- Styles personnalisés -->
@@ -118,13 +120,14 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     
     <?php if (isset($includeCalendarAssets) && $includeCalendarAssets): ?>
+    <!-- TUI Code Snippet JS -->
+    <script src="/tui_calendar/assets/js/tui-code-snippet.js"></script>
+    <!-- TUI Time Picker JS -->
+    <script src="/tui_calendar/assets/js/tui-time-picker.js"></script>
+    <!-- TUI Date Picker JS -->
+    <script src="/tui_calendar/assets/js/tui-date-picker.js"></script>    
     <!-- TUI Calendar JS -->
-    <script src="https://uicdn.toast.com/calendar/latest/toastui-calendar.min.js"></script>
-    <!-- Dépendances pour TUI Calendar -->
-    <script src="https://uicdn.toast.com/tui.code-snippet/latest/tui-code-snippet.min.js"></script>
-    <script src="https://uicdn.toast.com/tui.dom/latest/tui-dom.min.js"></script>
-    <script src="https://uicdn.toast.com/tui.time-picker/latest/tui-time-picker.min.js"></script>
-    <script src="https://uicdn.toast.com/tui.date-picker/latest/tui-date-picker.min.js"></script>
+    <script src="/tui_calendar/assets/js/tui-calendar.js"></script>
     <?php endif; ?>
     
     <!-- Scripts spécifiques à la page -->

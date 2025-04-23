@@ -3,6 +3,7 @@ require_once __DIR__ . '/../models/Calendar.php';
 require_once __DIR__ . '/../models/Category.php';
 require_once __DIR__ . '/../models/Event.php';
 require_once __DIR__ . '/../models/CalendarSettings.php';
+require_once __DIR__ . '/../config/Routes.php';
 require_once __DIR__ . '/../controllers/UserController.php';
 
 /**
