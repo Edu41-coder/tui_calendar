@@ -20,6 +20,10 @@ $calendarDataJSON = json_encode($calendarDataForJS);
 
 // Préparer les scripts pour la page
 $pageScripts = <<<HTML
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/locales/bootstrap-datepicker.fr.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const calendar = new tui.Calendar('#calendar', {
@@ -39,6 +43,11 @@ document.addEventListener('DOMContentLoaded', function() {
             timezonesCollapsed: false,
             currentTimeIndicator: false
         },
+        // Added month config to start on Monday with French day names
+        month: {
+            startDayOfWeek: 1,
+            daynames: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+        },
         template: {
             // Cette méthode traduit le CONTENU des événements toute la journée
             allday: function(schedule) {
@@ -47,9 +56,27 @@ document.addEventListener('DOMContentLoaded', function() {
             // Cette méthode traduit l'EN-TÊTE de la section toute la journée
             alldayTitle: function() {
                 return '<div style="text-align: center; width: 100%;">Toute la journée</div>';
+            },
+            time(schedule) {
+                const calColor = schedule.raw?.calendarColor || '#333';
+                const catColor = schedule.raw?.categoryColor || '#999';
+                return `
+                  <div style="
+                    width: 100%;
+                    height: 100%;
+                    box-sizing: border-box;
+                    border: 8px solid \${calColor};
+                    background-color: \${catColor};
+                  ">
+\                    \${schedule.title}
+                  </div>
+                `;
             }
         }
     });
+
+    // Appelez la fonction juste après l’initialisation
+    updateCalendarHeader();
 
     // Ajouter cette fonction après l'initialisation du calendrier
     function updateCalendarHeader() {
@@ -59,9 +86,29 @@ document.addEventListener('DOMContentLoaded', function() {
         const month = months[currentDate.getMonth()];
         const year = currentDate.getFullYear();
         
-        // Mettre à jour l'en-tête avec le mois et l'année actuels
-        document.getElementById('calendar-date-header').textContent = `\${month} \${year}`;
+        // CORRIGÉ : enlever les barres obliques inverses
+        document.getElementById('calendar-date-header').textContent = `\${month} \${year}`.replace(/\\/g, '');
     }
+
+    // Fonction pour mettre à jour l'état actif des boutons de vue
+    function updateViewButtons(viewName) {
+        // Supprimer la classe active de tous les boutons
+        document.getElementById('day-view').classList.remove('active');
+        document.getElementById('week-view').classList.remove('active');
+        document.getElementById('month-view').classList.remove('active');
+        
+        // Ajouter la classe active au bouton correspondant à la vue actuelle
+        if (viewName === 'day') {
+            document.getElementById('day-view').classList.add('active');
+        } else if (viewName === 'week') {
+            document.getElementById('week-view').classList.add('active');
+        } else if (viewName === 'month') {
+            document.getElementById('month-view').classList.add('active');
+        }
+    }
+
+    // Initialiser l'état des boutons
+    updateViewButtons('week'); // Vue par défaut
 
     // Appeler la fonction immédiatement pour initialiser l'affichage
     updateCalendarHeader();
@@ -81,14 +128,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.getElementById('day-view').addEventListener('click', () => {
         calendar.changeView('day');
+        updateViewButtons('day');
         updateCalendarHeader();
     });
     document.getElementById('week-view').addEventListener('click', () => {
         calendar.changeView('week');
+        updateViewButtons('week');
         updateCalendarHeader();
     });
     document.getElementById('month-view').addEventListener('click', () => {
         calendar.changeView('month');
+        updateViewButtons('month');
         updateCalendarHeader();
     });
     
@@ -135,28 +185,85 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Créer l'événement
+            // Récupérer la couleur de la catégorie
+            const categorySelect = document.getElementById('eventCategory');
+            const categoryColor = categorySelect.options[categorySelect.selectedIndex]
+                                        .getAttribute('data-color');
+
+            // Récupérer la couleur du calendrier
+            const calendarSelect = document.getElementById('eventCalendar');
+            const calId = calendarSelect.value;
+            const calOption = calendarSelect.querySelector(`option[value="\${calId}"]`);
+            // On suppose que le style de l'option contient un "background-color" (ex: style="background-color: #abcdef")
+            const calendarColor = calOption.getAttribute('style')
+              .replace('background-color:', '')
+              .replace(';', '')
+              .trim();
+
+            // Utiliser ces couleurs pour l'événement
             calendar.createSchedules([{
                 id: String(new Date().getTime()),
                 calendarId: calendarId,
                 title: title,
                 start: start,
                 end: end,
-                category: 'time', // Catégorie 'time' pour les événements avec heure spécifique
-                isAllDay: false,
-                location: eventObj.location || '',
+                isAllDay: false,                 // ou true, selon votre logique
+                category: 'time', 
                 raw: {
-                    class: eventObj.raw?.class || 'public'
-                },
-                state: 'busy'
+                    calendarColor: calendarColor,
+                    categoryColor: categoryColor
+                }
             }]);
+
+            document.documentElement.style.setProperty('--calendarColor', calendarColor);
+            document.documentElement.style.setProperty('--categoryColor', categoryColor);
             
             // Fermer le modal
             modal.hide();
         };
     });
+
+    // Initialiser jQuery datepicker (au lieu d'utiliser $(document).ready)
+    jQuery(function($) {
+        $('#datepicker').datepicker({
+            format: 'dd/mm/yyyy',
+            language: 'fr',
+            autoclose: true,
+            todayHighlight: true
+        });
+        
+        // Ouvrir le datepicker quand on clique sur le bouton
+        $('#date-picker-btn').click(function(){
+            $('#datepicker').datepicker('show');
+        });
+        
+        // Quand une date est sélectionnée, naviguer vers cette date dans le calendrier TUI
+        $('#datepicker').on('changeDate', function(e){
+            const selectedDate = e.date;
+            
+            // Définir la date dans le calendrier TUI
+            calendar.setDate(selectedDate);
+            
+            // Mettre à jour l'en-tête
+            updateCalendarHeader();
+        });
+    });
 });
 </script>
+<style>
+.date-picker-container {
+    position: relative;
+}
+.datepicker-dropdown {
+    z-index: 1060 !important; /* S'assurer que le datepicker s'affiche au-dessus des autres éléments */
+}
+/* Exemple : 25 % à gauche en couleur de calendrier, 75 % au centre en couleur de catégorie */
+.tui-full-calendar-time-schedule .tui-full-calendar-schedule {
+  background: linear-gradient(to right, var(--calendarColor, #333) 25%, var(--categoryColor, #999) 25%) !important;
+  /* Si besoin, retirez aussi la couleur inline déjà appliquée : */
+  background-color: transparent !important;
+}
+</style>
 HTML;
 
 // Démarrer la capture du contenu
@@ -190,8 +297,31 @@ ob_start();
     </div>
     
     <div class="row">
+        <!-- Calendrier TUI -->
+        <div class="col-md-9 col-lg-10 order-1 order-md-2">
+            <div class="card shadow-sm mb-3">
+                <div class="card-body py-2 d-flex justify-content-center align-items-center">
+                    <h2 id="calendar-date-header" class="h4 mb-0 text-center me-2">
+                        <!-- Le mois et l'année seront affichés ici -->
+                    </h2>
+                    <div class="date-picker-container">
+                        <input type="text" id="datepicker" class="d-none">
+                        <button class="btn btn-sm btn-outline-secondary" id="date-picker-btn">
+                            <i class="fas fa-calendar-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <div id="calendar" style="height: 800px;"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Calendriers et filtres -->
-        <div class="col-md-3 col-lg-2 mb-4">
+        <div class="col-md-3 col-lg-2 mb-4 order-2 order-md-1">
             <div class="card shadow-sm mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Mes calendriers</h5>
@@ -240,23 +370,6 @@ ob_start();
                 </div>
             </div>
         </div>
-        
-        <!-- Calendrier TUI -->
-        <div class="col-md-9 col-lg-10">
-            <div class="card shadow-sm mb-3">
-                <div class="card-body py-2">
-                    <h2 id="calendar-date-header" class="h4 mb-0 text-center">
-                        <!-- Le mois et l'année seront affichés ici -->
-                    </h2>
-                </div>
-            </div>
-
-            <div class="card shadow-sm">
-                <div class="card-body p-0">
-                    <div id="calendar" style="height: 800px;"></div>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -293,11 +406,17 @@ ob_start();
             </select>
           </div>
           <div class="mb-3">
-           <label for="eventType" class="form-label">Type d'événement</label>
-           <select class="form-select" id="eventType">
-            <option value="time">Événement normal</option>
-            <option value="allday">Toute la journée</option>
-          </select>
+            <label for="eventCategory" class="form-label">Catégorie</label>
+            <select class="form-select" id="eventCategory">
+              <?php foreach ($categories as $cat): ?>
+                <option 
+                  value="<?= $cat['id'] ?>"
+                  data-color="<?= $cat['bg_color'] ?>"
+                >
+                  <?= htmlspecialchars($cat['name']) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
           </div>
         </form>
       </div>
