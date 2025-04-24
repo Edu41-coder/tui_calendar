@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
         taskView: false,
         scheduleView: ['time', 'allday'],
         useCreationPopup: false,
-        useDetailPopup: true,
+        useDetailPopup: false,  // Désactiver le popup d'édition par défaut
         calendars: {$calendarDataJSON},
         week: {
             hourStart: 0,
@@ -43,23 +43,21 @@ document.addEventListener('DOMContentLoaded', function() {
             timezonesCollapsed: false,
             currentTimeIndicator: false
         },
-        // Added month config to start on Monday with French day names
         month: {
             startDayOfWeek: 1,
             daynames: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
         },
         template: {
-            // Cette méthode traduit le CONTENU des événements toute la journée
             allday: function(schedule) {
                 return schedule.title;
             },
-            // Cette méthode traduit l'EN-TÊTE de la section toute la journée
             alldayTitle: function() {
                 return '<div style="text-align: center; width: 100%;">Toute la journée</div>';
             },
             time(schedule) {
                 const calColor = schedule.raw?.calendarColor || '#333';
                 const catColor = schedule.raw?.categoryColor || '#999';
+                const textColor = schedule.raw?.categoryTextColor || '#000000';
                 return `
                   <div style="
                     width: 100%;
@@ -68,17 +66,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     border: 8px solid \${calColor};
                     background-color: \${catColor};
                   ">
-\                    \${schedule.title}
+                    \${schedule.title}
                   </div>
                 `;
             }
         }
     });
 
-    // Appelez la fonction juste après l’initialisation
-    updateCalendarHeader();
+    // Intercepter l'événement de clic sur un événement existant
+    calendar.on('clickSchedule', function(e) {
+        e.preventDefault && e.preventDefault();
+        const schedule = e.schedule;
+        openEditModal({
+            id: schedule.id,
+            title: schedule.title,
+            start: schedule.start,
+            end: schedule.end,
+            calendarId: schedule.calendarId,
+            raw: schedule.raw || {}
+        });
+    });
 
-    // Ajouter cette fonction après l'initialisation du calendrier
+    // Fonction pour mettre à jour l'en-tête du calendrier
     function updateCalendarHeader() {
         const currentDate = calendar.getDate();
         const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 
@@ -86,18 +95,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const month = months[currentDate.getMonth()];
         const year = currentDate.getFullYear();
         
-        // CORRIGÉ : enlever les barres obliques inverses
-        document.getElementById('calendar-date-header').textContent = `\${month} \${year}`.replace(/\\\\/g, '');
+        document.getElementById('calendar-date-header').textContent = `\${month} \${year}`;
     }
+
+    // Initialiser l'en-tête du calendrier
+    updateCalendarHeader();
 
     // Fonction pour mettre à jour l'état actif des boutons de vue
     function updateViewButtons(viewName) {
-        // Supprimer la classe active de tous les boutons
         document.getElementById('day-view').classList.remove('active');
         document.getElementById('week-view').classList.remove('active');
         document.getElementById('month-view').classList.remove('active');
         
-        // Ajouter la classe active au bouton correspondant à la vue actuelle
         if (viewName === 'day') {
             document.getElementById('day-view').classList.add('active');
         } else if (viewName === 'week') {
@@ -108,34 +117,36 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Initialiser l'état des boutons
-    updateViewButtons('week'); // Vue par défaut
-
-    // Appeler la fonction immédiatement pour initialiser l'affichage
-    updateCalendarHeader();
+    updateViewButtons('week');
 
     // Navigation entre les vues
     document.getElementById('today-btn').addEventListener('click', () => {
         calendar.today();
         updateCalendarHeader();
     });
+    
     document.getElementById('prev-btn').addEventListener('click', () => {
         calendar.prev();
         updateCalendarHeader();
     });
+    
     document.getElementById('next-btn').addEventListener('click', () => {
         calendar.next(); 
         updateCalendarHeader();
     });
+    
     document.getElementById('day-view').addEventListener('click', () => {
         calendar.changeView('day');
         updateViewButtons('day');
         updateCalendarHeader();
     });
+    
     document.getElementById('week-view').addEventListener('click', () => {
         calendar.changeView('week');
         updateViewButtons('week');
         updateCalendarHeader();
     });
+    
     document.getElementById('month-view').addEventListener('click', () => {
         calendar.changeView('month');
         updateViewButtons('month');
@@ -158,72 +169,159 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('eventEnd').value = formattedEnd;
         document.getElementById('eventCalendar').value = eventObj.calendarId || '1';
         
-        // Fonction pour formater correctement une date pour un input datetime-local
-        function formatDateForInput(date) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            
-            return `\${year}-\${month}-\${day}T\${hours}:\${minutes}`;
+        // Afficher le modal Bootstrap
+        openCreateModal();
+    });
+
+    // Gestionnaire de clic sur le bouton Enregistrer (défini une seule fois)
+    document.getElementById('saveEventBtn').onclick = function() {
+        const title = document.getElementById('eventTitle').value;
+        const start = new Date(document.getElementById('eventStart').value);
+        const end = new Date(document.getElementById('eventEnd').value);
+        const calendarId = document.getElementById('eventCalendar').value;
+        const categoryId = document.getElementById('eventCategory').value;
+
+        console.log('--- DÉBUT LOGS DE DÉBOGAGE ---');
+        console.log('calendarId:', calendarId);
+        console.log('calendrier sélectionné:', document.getElementById('eventCalendar').selectedOptions[0].text);
+        console.log('categoryId:', categoryId);
+        console.log('catégorie sélectionnée:', document.getElementById('eventCategory').selectedOptions[0].text);
+        
+        if (!title) {
+            alert('Veuillez entrer un titre pour l\'événement');
+            return;
         }
         
-        // Afficher le modal Bootstrap
-        const modal = new bootstrap.Modal(document.getElementById('createEventModal'));
-        modal.show();
-        
-        // Gérer la soumission du formulaire
-        document.getElementById('saveEventBtn').onclick = function() {
-            const title = document.getElementById('eventTitle').value;
-            const start = new Date(document.getElementById('eventStart').value);
-            const end = new Date(document.getElementById('eventEnd').value);
-            const calendarId = document.getElementById('eventCalendar').value;
-            
-            if (!title) {
-                alert('Veuillez entrer un titre pour l\'événement');
-                return;
+        // Récupérer les couleurs de la catégorie sélectionnée
+        const categorySelect = document.getElementById('eventCategory');
+        let categoryColor = '#FFFFFF';  // bg_color
+        let categoryTextColor = '#000000';  // color (pour le texte)
+        for(let i = 0; i < categorySelect.options.length; i++) {
+            if(categorySelect.options[i].value === categoryId) {
+                categoryColor = categorySelect.options[i].style.backgroundColor || '#FFFFFF';
+                // Ajouter cette ligne pour récupérer la couleur du texte
+                categoryTextColor = categorySelect.options[i].style.color || '#000000';
+                console.log('Catégorie trouvée:', categorySelect.options[i].text);
+                break;
             }
-            
-            // Récupérer la couleur de la catégorie
-            const categorySelect = document.getElementById('eventCategory');
-            const categoryColor = categorySelect.options[categorySelect.selectedIndex]
-                                        .getAttribute('data-color');
+        }
 
-            // Récupérer la couleur du calendrier
-            const calendarSelect = document.getElementById('eventCalendar');
-            const calId = calendarSelect.value;
-            const calOption = calendarSelect.querySelector(`option[value="\${calId}"]`);
-            // On suppose que le style de l'option contient un "background-color" (ex: style="background-color: #abcdef")
-            const calendarColor = calOption.getAttribute('style')
-              .replace('background-color:', '')
-              .replace(';', '')
-              .trim();
+        // Récupérer la couleur du calendrier (méthode alternative)
+        const calendarSelect = document.getElementById('eventCalendar');
+        let calendarColor = '#FFFFFF';
+        for(let i = 0; i < calendarSelect.options.length; i++) {
+            if(calendarSelect.options[i].value === calendarId) {
+                calendarColor = calendarSelect.options[i].style.backgroundColor || '#FFFFFF';
+                console.log('Calendrier trouvé:', calendarSelect.options[i].text);
+                break;
+            }
+        }
 
-            // Utiliser ces couleurs pour l'événement
+        console.log('calendarColor:', calendarColor);
+        console.log('categoryColor:', categoryColor);
+
+        // Vérifier si on est en mode création ou édition
+        const eventId = document.getElementById('editEventId').value;
+        console.log('eventId:', eventId, eventId ? '(Mode édition)' : '(Mode création)');
+
+        if (!eventId) {
+            // MODE CRÉATION
             calendar.createSchedules([{
                 id: String(new Date().getTime()),
                 calendarId: calendarId,
                 title: title,
                 start: start,
                 end: end,
-                isAllDay: false,                 // ou true, selon votre logique
-                category: 'time', 
+                isAllDay: false,
+                category: 'time',
                 raw: {
                     calendarColor: calendarColor,
-                    categoryColor: categoryColor
+                    categoryColor: categoryColor,
+                    categoryTextColor: categoryTextColor,
+                    categoryId: categoryId 
                 }
             }]);
-
-            document.documentElement.style.setProperty('--calendarColor', calendarColor);
-            document.documentElement.style.setProperty('--categoryColor', categoryColor);
+        } else {
+            // MODE ÉDITION
+            // Récupérer le calendrier d'origine de l'événement
+            const originalCalendarId = document.getElementById('originalCalendarId').value;
+            const originalEvent = calendar.getSchedule(eventId, originalCalendarId);
+                        
+            console.log('Calendrier original:', originalCalendarId);
+            console.log('Nouveau calendrier:', calendarId);
             
-            // Fermer le modal
-            modal.hide();
-        };
-    });
+            // Vérifier si le calendrier a changé
+            if (originalCalendarId !== calendarId) {
+                console.log('Changement de calendrier détecté - Suppression puis recréation');
+                
+                // 1. Supprimer l'événement existant
+                calendar.deleteSchedule(eventId, originalCalendarId);
+                
+                // 2. Créer un nouvel événement avec les nouvelles valeurs
+                calendar.createSchedules([{
+                    id: eventId, // Conserver le même ID
+                    calendarId: calendarId,
+                    title: title,
+                    start: start,
+                    end: end,
+                    isAllDay: false,
+                    category: 'time',
+                    raw: {
+                        calendarColor: calendarColor,
+                        categoryColor: categoryColor,
+                        categoryId: categoryId
+                    }
+                }]);
+            } else {
+                // Pas de changement de calendrier, utiliser updateSchedule normalement
+                calendar.updateSchedule(eventId, calendarId, {
+                    title: title,
+                    start: start,
+                    end: end,
+                    raw: {
+                        calendarColor: calendarColor,
+                        categoryColor: categoryColor,
+                        categoryId: categoryId
+                    }
+                });
+            }
+            
+            // Force le rafraîchissement visuel
+            calendar.render();
+        }
+        console.log('--- FIN LOGS DE DÉBOGAGE ---');
 
-    // Initialiser jQuery datepicker (au lieu d'utiliser $(document).ready)
+        // Fermer le modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('createEventModal'));
+        modal.hide();
+    };
+
+    // Gérer le clic sur "Supprimer" en mode édition
+    const deleteEventBtn = document.getElementById('deleteEventBtn');
+    deleteEventBtn.onclick = function() {
+        // Ouvrir simplement le modal de confirmation
+        const confirmModal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+        confirmModal.show();
+    };
+
+    // Au clic sur "Confirmer la suppression"
+    const confirmDeleteEventBtn = document.getElementById('confirmDeleteEventBtn');
+    confirmDeleteEventBtn.onclick = function() {
+        const eventId = document.getElementById('editEventId').value;
+        const calendarId = document.getElementById('eventCalendar').value;
+
+        if (eventId) {
+            calendar.deleteSchedule(eventId, calendarId);
+        }
+
+        // Fermer les deux modals
+        const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
+        const mainEventModal = bootstrap.Modal.getInstance(document.getElementById('createEventModal'));
+        confirmModal.hide();
+        mainEventModal.hide();
+    };
+
+    // Initialiser jQuery datepicker
     jQuery(function($) {
         $('#datepicker').datepicker({
             format: 'dd/mm/yyyy',
@@ -240,14 +338,59 @@ document.addEventListener('DOMContentLoaded', function() {
         // Quand une date est sélectionnée, naviguer vers cette date dans le calendrier TUI
         $('#datepicker').on('changeDate', function(e){
             const selectedDate = e.date;
-            
-            // Définir la date dans le calendrier TUI
             calendar.setDate(selectedDate);
-            
-            // Mettre à jour l'en-tête
             updateCalendarHeader();
         });
     });
+
+    const modal = new bootstrap.Modal(document.getElementById('createEventModal'));
+    const modalTitle = document.getElementById('createEventModalLabel');
+    const editEventId = document.getElementById('editEventId');
+
+    // Pour créer un nouvel événement
+    function openCreateModal() {
+        modalTitle.textContent = 'Créer un événement';
+        deleteEventBtn.classList.add('d-none');
+        editEventId.value = ''; 
+        
+        const calendarSelect = document.getElementById('eventCalendar');   
+        
+        // FORCER la sélection du premier élément si aucun n'est sélectionné
+        if (calendarSelect.selectedIndex < 0 && calendarSelect.options.length > 0) {
+            calendarSelect.selectedIndex = 0;
+        }
+        
+        modal.show();
+    }
+
+    // Pour éditer un événement existant
+    function openEditModal(eventData) {
+        modalTitle.textContent = 'Modifier un événement';
+        deleteEventBtn.classList.remove('d-none');
+        editEventId.value = eventData.id;
+        document.getElementById('eventTitle').value = eventData.title;
+        document.getElementById('eventStart').value = formatDateForInput(eventData.start);
+        document.getElementById('eventEnd').value = formatDateForInput(eventData.end);
+        document.getElementById('originalCalendarId').value = eventData.calendarId;
+        document.getElementById('eventCalendar').value = eventData.calendarId;
+        
+        // AJOUT: Définir la catégorie si disponible
+        if (eventData.raw && eventData.raw.categoryId) {
+            document.getElementById('eventCategory').value = eventData.raw.categoryId;
+        }
+        
+        modal.show();
+    }
+
+    // Fonction utilitaire de formatage (définie une seule fois)
+    function formatDateForInput(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `\${year}-\${month}-\${day}T\${hours}:\${minutes}`;
+    }
 });
 </script>
 <style>
@@ -313,7 +456,7 @@ ob_start();
             </div>
         </div>
     </div>
-    
+
     <div class="row">
         <!-- Calendrier TUI -->
         <div class="col-md-9 col-lg-10 order-1 order-md-2">
@@ -352,11 +495,11 @@ ob_start();
                         <?php foreach ($calendars as $calendar): ?>
                             <li class="list-group-item d-flex align-items-center">
                                 <div class="form-check">
-                                    <input class="form-check-input calendar-checkbox" 
-                                           type="checkbox" 
-                                           value="<?= $calendar['calendar_id'] ?>" 
-                                           id="cal-<?= $calendar['calendar_id'] ?>" 
-                                           <?= $calendar['is_visible'] ? 'checked' : '' ?>>
+                                    <input class="form-check-input calendar-checkbox"
+                                        type="checkbox"
+                                        value="<?= $calendar['calendar_id'] ?>"
+                                        id="cal-<?= $calendar['calendar_id'] ?>"
+                                        <?= $calendar['is_visible'] ? 'checked' : '' ?>>
                                     <label class="form-check-label" for="cal-<?= $calendar['calendar_id'] ?>">
                                         <span class="color-dot" style="background-color: <?= htmlspecialchars($calendar['color']) ?>;"></span>
                                         <?= htmlspecialchars($calendar['name']) ?>
@@ -367,7 +510,7 @@ ob_start();
                     </ul>
                 </div>
             </div>
-            
+
             <!-- Catégories -->
             <div class="card shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -379,10 +522,21 @@ ob_start();
                 <div class="card-body p-0">
                     <ul class="list-group list-group-flush">
                         <?php foreach ($categories as $category): ?>
-                            <li class="list-group-item">
+                            <!-- <li class="list-group-item"> 
                                 <span class="color-dot" style="background-color: <?= htmlspecialchars($category['bg_color']) ?>;"></span>
                                 <?= htmlspecialchars($category['name']) ?>
+                            </li> -->
+                            <li class="list-group-item" style="background-color: <?= htmlspecialchars($category['bg_color']) ?>;">
+                                <?= htmlspecialchars($category['name']) ?>
                             </li>
+                            <!-- Commented out category option 
+                            <option 
+                              value="<?= $category['category_id'] ?>" 
+                              style="background-color: <?= htmlspecialchars($category['bg_color']) ?>"
+                            >
+                              <?= htmlspecialchars($category['name']) ?>
+                            </option>
+                            -->
                         <?php endforeach; ?>
                     </ul>
                 </div>
@@ -391,59 +545,88 @@ ob_start();
     </div>
 </div>
 
-<!-- Modal de création d'événement -->
+<!-- Modal de création/édition d'événement -->
 <div class="modal fade" id="createEventModal" tabindex="-1" aria-labelledby="createEventModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="createEventModalLabel">Créer un événement</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-      </div>
-      <div class="modal-body">
-        <form>
-          <div class="mb-3">
-            <label for="eventTitle" class="form-label">Titre</label>
-            <input type="text" class="form-control" id="eventTitle" required>
-          </div>
-          <div class="mb-3">
-            <label for="eventStart" class="form-label">Début</label>
-            <input type="datetime-local" class="form-control" id="eventStart">
-          </div>
-          <div class="mb-3">
-            <label for="eventEnd" class="form-label">Fin</label>
-            <input type="datetime-local" class="form-control" id="eventEnd">
-          </div>
-          <div class="mb-3">
-            <label for="eventCalendar" class="form-label">Calendrier</label>
-            <select class="form-select" id="eventCalendar">
-              <?php foreach ($calendars as $cal): ?>
-                <option value="<?= $cal['calendar_id'] ?>" style="background-color: <?= $cal['color'] ?>">
-                  <?= htmlspecialchars($cal['name']) ?>
-                </option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label for="eventCategory" class="form-label">Catégorie</label>
-            <select class="form-select" id="eventCategory">
-              <?php foreach ($categories as $cat): ?>
-                <option 
-                  value="<?= $cat['id'] ?>"
-                  data-color="<?= $cat['bg_color'] ?>"
-                >
-                  <?= htmlspecialchars($cat['name']) ?>
-                </option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-        <button type="button" class="btn btn-primary" id="saveEventBtn">Enregistrer</button>
-      </div>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <!-- Le titre évolue selon création ou édition -->
+                <h5 class="modal-title" id="createEventModalLabel">Créer/Modifier un événement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <!-- Champ caché pour l'ID de l'événement (vide si on crée) -->
+                    <input type="hidden" id="editEventId">
+                    <input type="hidden" id="originalCalendarId">
+
+                    <div class="mb-3">
+                        <label for="eventTitle" class="form-label">Titre</label>
+                        <input type="text" class="form-control" id="eventTitle" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="eventStart" class="form-label">Début</label>
+                        <input type="datetime-local" class="form-control" id="eventStart">
+                    </div>
+                    <div class="mb-3">
+                        <label for="eventEnd" class="form-label">Fin</label>
+                        <input type="datetime-local" class="form-control" id="eventEnd">
+                    </div>
+                    <div class="mb-3">
+                        <label for="eventCalendar" class="form-label">Calendrier</label>
+                        <select class="form-select" id="eventCalendar" required>
+                            <?php if (!empty($calendars)): ?>
+                                <?php foreach ($calendars as $index => $cal):
+                                    $isFirst = ($index === 0);
+                                ?>
+                                    <option
+                                        value="<?= $cal['calendar_id'] ?>"
+                                        <?= $isFirst ? 'selected="selected"' : '' ?>
+                                        style="background-color: <?= htmlspecialchars($cal['color']) ?>">
+                                        <?= htmlspecialchars($cal['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="eventCategory" class="form-label">Catégorie</label>
+                        <select class="form-select" id="eventCategory">
+                            <?php foreach ($categories as $category): ?>
+                                <option value="<?= $category['category_id'] ?>" style="background-color: <?= htmlspecialchars($category['bg_color']) ?>">
+                                    <?= htmlspecialchars($category['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger d-none" id="deleteEventBtn">Supprimer</button>
+                <button type="button" class="btn btn-primary" id="saveEventBtn">Enregistrer</button>
+            </div>
+        </div>
     </div>
-  </div>
+</div>
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmDeleteModalLabel">Confirmer la suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                Êtes-vous sûr de vouloir supprimer cet événement ?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteEventBtn">Supprimer</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <?php

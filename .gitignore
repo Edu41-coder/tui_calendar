@@ -1,0 +1,17 @@
+# Ignorer le fichier git.txt qui contient des commandes git
+git.txt
+
+# Ignorer le fichier serve.txt
+serve.txt
+
+# Fichiers système à ignorer généralement
+.DS_Store
+Thumbs.db
+
+# Fichiers d'environnement courants
+.env
+.env.local
+
+# Dossiers générés couramment ignorés
+/node_modules
+/vendor

@@ -28,3 +28,72 @@ git config --global user.name "edu"
 
 git config user.email "hehermosilla@gmail.com"
 git config user.name "edu"
+git push upstream develop
+
+
+Résoudre l'erreur de fusion Git
+
+Solution 1 : Enregistrer vos modifications d'abord
+
+# 1. Enregistrer vos modifications locales
+git add .
+git commit -m "Mes modifications sur le calendrier"
+
+# 2. Ensuite récupérer les modifications distantes
+git pull upstream develop
+
+# 3. Résoudre les conflits si nécessaire
+# (Git vous indiquera les fichiers en conflit)
+
+
+
+Edu41-coder
+j'ai eu l'erreur
+remote: Enumerating objects: 25, done.
+remote: Counting objects: 100% (25/25), done.
+remote: Compressing objects: 100% (5/5), done.
+remote: Total 16 (delta 12), reused 15 (delta 11), pack-reused 0 (from 0)
+Unpacking objects: 100% (16/16), 10.68 KiB | 101.00 KiB/s, done.
+From https://github.com/Edu41-coder/tui_calendar
+
+branch develop -> FETCH_HEAD
+00ba862..6ec4409 develop -> upstream/develop
+Updating 00ba862..6ec4409
+error: Your local changes to the following files would be overwritten by merge:
+git.txt
+views/calendar/index.php
+Please commit your changes or stash them before you merge.
+Aborting
+
+GitHub Copilot
+Résoudre l'erreur de fusion Git
+L'erreur que vous rencontrez est classique : Git refuse de faire un pull car vos fichiers locaux ont été modifiés et seraient écrasés par la mise à jour depuis le dépôt distant.
+
+Solution 2 : Utiliser Git Stash (mise de côté temporaire)
+
+# 1. Mettre de côté vos modifications actuelles
+git stash
+
+# 2. Récupérer les modifications du dépôt distant
+git pull upstream develop
+
+# 3. Réappliquer vos modifications
+git stash pop
+# (vous devrez peut-être résoudre des conflits manuellement)
+
+Si vous voulez simplement revenir à un commit précédent
+Si vous préférez abandonner complètement le merge et revenir à un état antérieur :
+
+# Identifier les commits précédents
+git log --oneline
+
+# Revenir à un commit spécifique
+git reset --hard <hash-du-commit>
+
+# Par exemple, pour revenir à 2 commits en arrière
+git reset --hard HEAD~2
+
+# Puis forcer le push (ATTENTION: ceci réécrit l'historique)
+git push -f upstream develop
+
+git reset --hard 6ec4409
