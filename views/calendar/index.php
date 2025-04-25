@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     box-sizing: border-box;
                     border: 8px solid \${calColor};
                     background-color: \${catColor};
+                    color: \${textColor};
                   ">
                     \${schedule.title}
                   </div>
@@ -202,6 +203,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Ajouter cette ligne pour récupérer la couleur du texte
                 categoryTextColor = categorySelect.options[i].style.color || '#000000';
                 console.log('Catégorie trouvée:', categorySelect.options[i].text);
+                console.log('Couleur de texte récupérée:', categoryTextColor);
                 break;
             }
         }
@@ -593,7 +595,7 @@ ob_start();
                         <label for="eventCategory" class="form-label">Catégorie</label>
                         <select class="form-select" id="eventCategory">
                             <?php foreach ($categories as $category): ?>
-                                <option value="<?= $category['category_id'] ?>" style="background-color: <?= htmlspecialchars($category['bg_color']) ?>">
+                                <option value="<?= $category['category_id'] ?>" style="background-color: <?= htmlspecialchars($category['bg_color']) ?>; color: <?= htmlspecialchars($category['color']) ?>">
                                     <?= htmlspecialchars($category['name']) ?>
                                 </option>
                             <?php endforeach; ?>
