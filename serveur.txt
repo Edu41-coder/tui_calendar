@@ -1,0 +1,33 @@
+// Version avec sauvegarde serveur
+calendar.on('beforeUpdateSchedule', function(e) {
+    const schedule = e.schedule;
+    const changes = e.changes;
+    
+    // Si c'est un changement de durée (redimensionnement)
+    if (changes && (changes.start || changes.end)) {
+        // Appliquer les modifications au calendrier
+        calendar.updateSchedule(schedule.id, schedule.calendarId, changes);
+        
+        // Préparer les données pour le serveur
+        const updatedEvent = {
+            id: schedule.id,
+            title: schedule.title,
+            start: changes.start || schedule.start,
+            end: changes.end || schedule.end,
+            calendarId: schedule.calendarId,
+            categoryId: schedule.raw?.categoryId
+        };
+        
+        // Appeler votre API pour sauvegarder l'événement
+        // saveEventToServer(updatedEvent);
+    }
+});
+
+
+Pour l'étape suivante (backend)
+Quand vous serez prêt à implémenter la persistance côté serveur, vous devrez :
+
+Créer un endpoint AJAX pour recevoir les mises à jour d'événements
+Ajouter une requête AJAX dans la fonction beforeUpdateSchedule
+Gérer les erreurs éventuelles et donner un feedback à l'utilisateur
+Mais pour la partie front-end, tout est correctement mis en place !
