@@ -111,17 +111,43 @@ document.addEventListener('DOMContentLoaded', function() {
                 const catColor = schedule.raw?.categoryColor || '#999';
                 const textColor = schedule.raw?.categoryTextColor || '#000000';
                 
+                // Détecter si on est en vue mensuelle
+                const currentView = calendar.getViewName();
+                const padding = currentView === 'month' ? '0px 2px' : '2px 8px';
+                
                 return `
                     <div class="event-content" data-schedule-id="\${schedule.id}" data-calendar-id="\${schedule.calendarId}" style="
                         position: relative;
                         width: 100%;
                         height: 100%;
                         box-sizing: border-box;
-                        border: 8px solid \${calColor};
+                        border: \${currentView === 'month' ? '4px solid ' : '8px solid '} \${calColor};
                         background-color: \${catColor};
                         color: \${textColor};
                     ">
-                        <div style="padding: 2px 8px;">
+                        <div style="padding: \${padding};">
+                            \${schedule.title}
+                        </div>
+                    </div>
+                `;
+            },
+            
+            monthGridSchedule: function(schedule) {
+                const calColor = schedule.raw?.calendarColor || '#333';
+                const catColor = schedule.raw?.categoryColor || '#999';
+                const textColor = schedule.raw?.categoryTextColor || '#000000';
+                
+                return `
+                    <div class="event-content month-view" data-schedule-id="\${schedule.id}" data-calendar-id="\${schedule.calendarId}" style="
+                        position: relative;
+                        width: 100%;
+                        height: 100%;
+                        box-sizing: border-box;
+                        border-left: 4px solid \${calColor};
+                        background-color: \${catColor};
+                        color: \${textColor};
+                    ">
+                        <div style="padding: 0px 2px;">
                             \${schedule.title}
                         </div>
                     </div>
@@ -545,17 +571,32 @@ function requestArrowHandlersUpdate(delay = 300) {
     // CONSERVER ce gestionnaire d'événements contextmenu du DOM (plus fiable)
     document.addEventListener('contextmenu', function(e) {
         const targetElement = e.target;
+        // Ajout des sélecteurs pour la vue mensuelle
         const isCalendarEvent = targetElement.closest('.tui-full-calendar-time-schedule') || 
-                              targetElement.closest('.tui-full-calendar-time-schedule-content');
+                              targetElement.closest('.tui-full-calendar-time-schedule-content') ||
+                              targetElement.closest('.tui-full-calendar-weekday-schedule') ||
+                              targetElement.closest('.event-content.month-view') ||
+                              targetElement.closest('.tui-full-calendar-weekday-grid-schedule-container');
         
         if (isCalendarEvent) {
             // Bloquer le menu contextuel du navigateur
             e.preventDefault();
             e.stopPropagation();
             
-            // Récupérer l'ID de l'événement à partir du DOM
-            const eventElement = targetElement.closest('.tui-full-calendar-time-schedule');
-            const eventId = eventElement ? eventElement.getAttribute('data-schedule-id') : null;
+            // Récupérer l'ID de l'événement à partir du DOM (amélioré pour la vue mensuelle)
+            const eventElement = targetElement.closest('.tui-full-calendar-time-schedule') || 
+                                targetElement.closest('.tui-full-calendar-weekday-schedule') ||
+                                targetElement.closest('.event-content');
+            
+            // Récupérer l'ID directement depuis l'élément ou depuis l'élément parent
+            let eventId = null;
+            if (eventElement) {
+                eventId = eventElement.getAttribute('data-schedule-id');
+                // Si l'ID n'est pas sur l'élément lui-même, chercher dans les parents proches
+                if (!eventId && targetElement.closest('[data-schedule-id]')) {
+                    eventId = targetElement.closest('[data-schedule-id]').getAttribute('data-schedule-id');
+                }
+            }
             
             // Si on a un ID d'événement, rechercher l'événement dans le calendrier
             if (eventId) {
@@ -681,6 +722,7 @@ function requestArrowHandlersUpdate(delay = 300) {
                     raw: {
                         calendarColor: calendarColor,
                         categoryColor: categoryColor,
+                        categoryTextColor: categoryTextColor, // Ajout de cette ligne
                         categoryId: categoryId
                     }
                 }]);
@@ -693,6 +735,7 @@ function requestArrowHandlersUpdate(delay = 300) {
                     raw: {
                         calendarColor: calendarColor,
                         categoryColor: categoryColor,
+                        categoryTextColor: categoryTextColor, // Ajout de cette ligne
                         categoryId: categoryId
                     }
                 });
@@ -865,15 +908,13 @@ function requestArrowHandlersUpdate(delay = 300) {
 }
 
 /* Masquer les points de couleur dans la vue mensuelle */
-.tui-full-calendar-month-view .tui-full-calendar-weekday-schedule-bullet,
-.tui-full-calendar-month-view .tui-full-calendar-weekday-schedule-dot {
+.tui-full-calendar-weekday-schedule-bullet{
+  display: none !important;
+}
+.tui-full-calendar-weekday-schedule-bullet-focused{
   display: none !important;
 }
 
-/* S'assurer que l'événement occupe tout l'espace sans le point */
-.tui-full-calendar-month-view .tui-full-calendar-weekday-schedule-title {
-  padding-left: 0 !important;
-}
 </style>
 HTML;
 
