@@ -1,10 +1,11 @@
 /* Styles personnalisés pour TUI Calendar */
 
-/* Styles généraux */
+/* ===== STYLES GÉNÉRAUX ===== */
 body {
     background-color: #f8f9fa;
 }
 
+/* ===== COMPOSANTS DE L'INTERFACE ===== */
 /* Point coloré pour les calendriers et catégories */
 .color-dot {
     display: inline-block;
@@ -15,33 +16,69 @@ body {
     border: 1px solid rgba(0,0,0,0.2);
 }
 
-/* Styles pour les événements sur le calendrier */
+/* Date picker */
+.date-picker-container {
+    position: relative;
+}
+
+.datepicker-dropdown {
+    z-index: 1060 !important; /* S'assurer que le datepicker s'affiche au-dessus des autres éléments */
+}
+
+/* ===== STYLES DU CALENDRIER TUI ===== */
+/* Container principal du calendrier */
+#calendar {
+    border-radius: .5rem;
+    overflow: hidden;
+    height: 800px;
+}
+
+/* Mise en forme des événements */
 .tui-full-calendar-month-week-item .tui-full-calendar-weekday-event {
     border-radius: 4px;
 }
 
-/* Amélioration du menu utilisateur */
-.list-group-item a {
-    color: #212529;
-    text-decoration: none;
-    display: block;
+/* Dégradé pour les événements (calendrier + catégorie) */
+.tui-full-calendar-time-schedule .tui-full-calendar-schedule {
+    background: linear-gradient(to right, var(--calendarColor, #333) 25%, var(--categoryColor, #999) 25%) !important;
+    background-color: transparent !important;
 }
 
-.list-group-item a:hover {
-    color: #0d6efd;
+/* Alignement de la vue jour */
+.tui-full-calendar-day-name {
+    text-align: center !important;
 }
 
-/* Amélioration des éléments de menu actifs */
-.list-group-item.active {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
+/* Alignement des dates dans l'en-tête */
+.tui-full-calendar-dayname-container .tui-full-calendar-dayname-date,
+.tui-full-calendar-dayname-container .tui-full-calendar-dayname-name {
+    text-align: center !important;
 }
 
-.list-group-item.active a,
-.list-group-item.active i {
-    color: white;
+/* Centrer les conteneurs de dates */
+.tui-full-calendar-dayname-date-area {
+    text-align: center !important;
+    justify-content: center !important;
+    display: flex !important;
 }
 
+/* Masquer les puces dans la vue mensuelle */
+.tui-full-calendar-weekday-schedule-bullet,
+.tui-full-calendar-weekday-schedule-bullet-focused {
+    display: none !important;
+}
+
+/* Style du jour courant */
+.toastui-calendar-today {
+    background-color: rgba(81, 92, 230, 0.05) !important;
+}
+
+/* Style des numéros de jours */
+.toastui-calendar-grid-cell-date {
+    font-weight: 600;
+}
+
+/* ===== STYLES DES CARTES ET CONTENEURS ===== */
 /* Styles de carte avec ombre légère */
 .card {
     box-shadow: 0 .125rem .25rem rgba(0,0,0,.075);
@@ -59,31 +96,8 @@ body {
     color: #0d6efd;
 }
 
-/* Animation pour les alertes */
-.alert {
-    animation: fadeIn 0.5s;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-/* Amélioration de l'apparence du calendrier TUI */
-#calendar {
-    border-radius: .5rem;
-    overflow: hidden;
-}
-
-.toastui-calendar-today {
-    background-color: rgba(81, 92, 230, 0.05) !important;
-}
-
-.toastui-calendar-grid-cell-date {
-    font-weight: 600;
-}
-
-/* Amélioration des boutons de navigation du calendrier */
+/* ===== STYLES DES BOUTONS ET CONTRÔLES ===== */
+/* Boutons de navigation du calendrier */
 #day-view.active, #week-view.active, #month-view.active {
     background-color: #0d6efd;
     color: white;
@@ -100,7 +114,7 @@ body {
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
 }
 
-/* Styliser les boutons submit */
+/* Animation des boutons */
 .btn-primary {
     transition: all 0.2s ease;
 }
@@ -110,14 +124,48 @@ body {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Style cohérent pour les icônes */
+/* ===== STYLES DES MENUS ET LISTES ===== */
+/* Menu utilisateur */
+.list-group-item a {
+    color: #212529;
+    text-decoration: none;
+    display: block;
+}
+
+.list-group-item a:hover {
+    color: #0d6efd;
+}
+
+/* Éléments de menu actifs */
+.list-group-item.active {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.list-group-item.active a,
+.list-group-item.active i {
+    color: white;
+}
+
+/* ===== ANIMATIONS ET EFFETS ===== */
+/* Animation pour les alertes */
+.alert {
+    animation: fadeIn 0.5s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ===== STYLE DES ICÔNES ===== */
 .fas, .fa {
     margin-right: 0.5rem;
     width: 1.25em;
     text-align: center;
 }
 
-/* Ajustements responsives */
+/* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
     .card-header h4 {
         font-size: 1.25rem;
@@ -129,35 +177,35 @@ body {
     
     /* Réduire l'espace entre le calendrier et la section "Mes calendriers" */
     .col-md-9.col-lg-10.order-1.order-md-2 {
-        margin-bottom: 10px; /* Réduit de 320px à 10px */
+        margin-bottom: 10px;
     }
     
-    /* NOUVEAU: Réglages pour éviter la superposition du calendrier */
+    /* Réglages pour éviter la superposition du calendrier */
     #calendar {
         height: auto !important;
         min-height: 500px !important;
     }
     
-    /* NOUVEAU: S'assurer que la dernière ligne est visible */
+    /* S'assurer que la dernière ligne est visible */
     .tui-full-calendar-month-week:last-child,
     .toastui-calendar-month-week:last-child {
         margin-bottom: 0 !important;
         padding-bottom: 0 !important;
     }
     
-    /* NOUVEAU: Ajuster la position de la section des calendriers sur mobile */
+    /* Ajuster la position de la section des calendriers sur mobile */
     .col-md-3.col-lg-2.mb-4.order-2.order-md-1 {
         position: static;
         margin-top: 10px;
-        margin-bottom: 10px; /* Ajouter une marge en bas aussi */
+        margin-bottom: 10px;
     }
     
-    /* NOUVEAU: Réduire l'espace entre catégories et copyright */
+    /* Réduire l'espace entre catégories et copyright */
     .card.shadow-sm:last-of-type {
         margin-bottom: 10px !important;
     }
     
-    /* NOUVEAU: Réduire l'espace du footer/copyright */
+    /* Réduire l'espace du footer/copyright */
     footer, .footer {
         margin-top: 10px !important;
         padding-top: 10px !important;

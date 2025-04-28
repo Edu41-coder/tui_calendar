@@ -19,7 +19,7 @@ git remote -v
 git checkout develop
 git status
 git add .
-git commit -m "Ajout de fonctionnalités au calendrier TUI"
+git commit -m "Ajout d'styles au calendrier TUI"
 git push upstream develop
 
 
