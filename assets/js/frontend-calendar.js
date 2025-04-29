@@ -8,6 +8,11 @@ document.addEventListener('DOMContentLoaded', function() {
     let attachHandlersTimeout = null;
     let arrowClickInProgress = false; 
     
+    // Initialiser le backend
+    CalendarBackend.init({
+        baseUrl: '/tui_calendar/'
+    });
+    
     // Récupérer les données du calendrier et des catégories injectées par PHP
     const calendarData = window.calendarData || [];
     const calendarIds = window.calendarIds || [];
@@ -31,8 +36,57 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialiser les modaux
     initializeModals(calendar);
     
+    // Charger les événements initiaux depuis le backend
+    loadInitialEvents(calendar);
+    
     // Attacher les flèches après le chargement initial
     setTimeout(() => attachArrowHandlers(calendar, calendarIds), 500);
+    
+    /**
+     * Charge les événements initiaux depuis le backend
+     */
+    function loadInitialEvents(calendar) {
+        // Calculer les dates de début et de fin pour le mois en cours
+        const currentDate = calendar.getDate();
+        const start = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+        const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
+        
+        CalendarBackend.loadEvents(start, end, function(error, events) {
+            if (error) {
+                console.error("Erreur lors du chargement des événements:", error);
+                return;
+            }
+            
+            if (events && events.length) {
+                // Convertir les événements au format TUI Calendar et les ajouter
+                const schedules = events.map(event => {
+                    return {
+                        id: event.id,
+                        calendarId: event.calendarId,
+                        title: event.title,
+                        start: new Date(event.start),
+                        end: new Date(event.end),
+                        isAllDay: event.isAllDay,
+                        category: event.isAllDay ? 'allday' : 'time',
+                        raw: {
+                            calendarColor: event.calendarColor,
+                            categoryColor: event.categoryColor,
+                            categoryTextColor: event.categoryTextColor,
+                            categoryId: event.categoryId,
+                            location: event.location,
+                            body: event.body
+                        }
+                    };
+                });
+                
+                calendar.createSchedules(schedules);
+                calendar.render();
+                
+                // Attacher les flèches après le chargement des événements
+                setTimeout(() => attachArrowHandlers(calendar, calendarIds), 300);
+            }
+        });
+    }
     
     /**
      * Ajoute les styles CSS pour les flèches d'extension
@@ -284,6 +338,23 @@ document.addEventListener('DOMContentLoaded', function() {
             calendar.prev();
             updateCalendarHeader(calendar);
             
+            // Vérifier si nous devons charger plus d'événements
+            const currentDate = calendar.getDate();
+            const startOfView = new Date(currentDate);
+            startOfView.setDate(1); // Premier jour du mois
+            
+            // Charger les événements du mois précédent
+            CalendarBackend.loadEvents(
+                new Date(startOfView.getFullYear(), startOfView.getMonth() - 1, 1),
+                startOfView,
+                function(error, events) {
+                    if (error || !events || !events.length) return;
+                    
+                    // Ajouter les événements au calendrier
+                    addEventsToCalendar(calendar, events);
+                }
+            );
+            
             if (calendar.getViewName() === 'week') {
                 requestArrowHandlersUpdate(500);
             }
@@ -293,6 +364,22 @@ document.addEventListener('DOMContentLoaded', function() {
             removeAllArrows();
             calendar.next(); 
             updateCalendarHeader(calendar);
+            
+            // Vérifier si nous devons charger plus d'événements
+            const currentDate = calendar.getDate();
+            const endOfView = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0); // Dernier jour du mois
+            
+            // Charger les événements du mois suivant
+            CalendarBackend.loadEvents(
+                new Date(endOfView.getFullYear(), endOfView.getMonth() + 1, 1),
+                new Date(endOfView.getFullYear(), endOfView.getMonth() + 2, 0),
+                function(error, events) {
+                    if (error || !events || !events.length) return;
+                    
+                    // Ajouter les événements au calendrier
+                    addEventsToCalendar(calendar, events);
+                }
+            );
             
             if (calendar.getViewName() === 'week') {
                 requestArrowHandlersUpdate(500);
@@ -339,11 +426,27 @@ document.addEventListener('DOMContentLoaded', function() {
             const schedule = e.schedule;
             const changes = e.changes;
             
-            console.log('Événement redimensionné:', schedule);
+            console.log('Événement redimensionné ou déplacé:', schedule);
             console.log('Modifications:', changes);
             
             if (changes && (changes.start || changes.end)) {
+                // Mettre à jour localement
                 calendar.updateSchedule(schedule.id, schedule.calendarId, changes);
+                
+                // Envoyer au backend
+                const moveData = {
+                    id: schedule.id,
+                    calendarId: schedule.calendarId,
+                    start: changes.start || schedule.start,
+                    end: changes.end || schedule.end
+                };
+                
+                CalendarBackend.moveEvent(moveData, function(error, response) {
+                    if (error) {
+                        console.error('Erreur lors du déplacement:', error);
+                        // Vous pourriez revenir à l'état précédent si nécessaire
+                    }
+                });
                 
                 console.log('Nouvel horaire:', 
                     changes.start ? formatDateForInput(changes.start) : formatDateForInput(schedule.start), 
@@ -394,16 +497,25 @@ document.addEventListener('DOMContentLoaded', function() {
             const calendarId = document.getElementById('eventCalendar').value;
 
             if (eventId) {
-                calendar.deleteSchedule(eventId, calendarId);
+                // D'abord appeler le backend
+                CalendarBackend.deleteEvent(eventId, calendarId, function(error, response) {
+                    if (!error) {
+                        // Supprimer localement si le backend a réussi
+                        calendar.deleteSchedule(eventId, calendarId);
+                    } else {
+                        console.error('Erreur lors de la suppression de l\'événement:', error);
+                    }
+                    
+                    // Fermer les modals quelle que soit la réponse
+                    const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
+                    const mainEventModal = bootstrap.Modal.getInstance(document.getElementById('createEventModal'));
+                    confirmModal.hide();
+                    mainEventModal.hide();
+                });
             }
-
-            const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
-            const mainEventModal = bootstrap.Modal.getInstance(document.getElementById('createEventModal'));
-            confirmModal.hide();
-            mainEventModal.hide();
         };
 
-        // Ajouter ce code après les autres écouteurs d'événements dans attachEventHandlers
+        // Gestionnaire pour le double-clic (édition d'événement)
         document.addEventListener('dblclick', function(e) {
             const eventElement = e.target.closest('.tui-full-calendar-time-schedule');
             if (!eventElement) return;
@@ -437,6 +549,36 @@ document.addEventListener('DOMContentLoaded', function() {
         }, false);
     }
     
+    /**
+     * Ajoute des événements au calendrier depuis les données backend
+     */
+    function addEventsToCalendar(calendar, events) {
+        if (!events || !events.length) return;
+        
+        const schedules = events.map(event => {
+            return {
+                id: event.id,
+                calendarId: event.calendarId,
+                title: event.title,
+                start: new Date(event.start),
+                end: new Date(event.end),
+                isAllDay: event.isAllDay,
+                category: event.isAllDay ? 'allday' : 'time',
+                raw: {
+                    calendarColor: event.calendarColor,
+                    categoryColor: event.categoryColor,
+                    categoryTextColor: event.categoryTextColor,
+                    categoryId: event.categoryId,
+                    location: event.location,
+                    body: event.body
+                }
+            };
+        });
+        
+        calendar.createSchedules(schedules);
+        calendar.render();
+        requestArrowHandlersUpdate(300);
+    }
     
     /**
      * Fonction pour enregistrer un événement (création ou modification)
@@ -491,71 +633,84 @@ document.addEventListener('DOMContentLoaded', function() {
         const eventId = document.getElementById('editEventId').value;
         console.log('eventId:', eventId, eventId ? '(Mode édition)' : '(Mode création)');
 
-        if (!eventId) {
-            // MODE CRÉATION
-            calendar.createSchedules([{
-                id: String(new Date().getTime()),
-                calendarId: calendarId,
-                title: title,
-                start: start,
-                end: end,
-                isAllDay: false,
-                category: 'time',
-                raw: {
-                    calendarColor: calendarColor,
-                    categoryColor: categoryColor,
-                    categoryTextColor: categoryTextColor,
-                    categoryId: categoryId 
-                }
-            }]);
-        } else {
-            // MODE ÉDITION
-            const originalCalendarId = document.getElementById('originalCalendarId').value;
-            const originalEvent = calendar.getSchedule(eventId, originalCalendarId);
-                        
-            console.log('Calendrier original:', originalCalendarId);
-            console.log('Nouveau calendrier:', calendarId);
+        // Préparer les données pour le backend
+        const eventData = {
+            id: eventId || null,
+            title: title,
+            start: start,
+            end: end,
+            calendarId: calendarId,
+            categoryId: categoryId,
+            isAllDay: false,
+            category: 'time',
+            raw: {
+                calendarColor: calendarColor,
+                categoryColor: categoryColor,
+                categoryTextColor: categoryTextColor,
+                categoryId: categoryId
+            }
+        };
+
+        // Envoyer au backend
+        CalendarBackend.saveEvent(eventData, function(error, response) {
+            if (error) {
+                console.error('Erreur lors de l\'enregistrement:', error);
+                return;
+            }
             
-            if (originalCalendarId !== calendarId) {
-                console.log('Changement de calendrier détecté - Suppression puis recréation');
-                
-                calendar.deleteSchedule(eventId, originalCalendarId);
-                
+            // Si c'est une création, utiliser l'ID renvoyé par le serveur
+            const newId = response.id || String(new Date().getTime());
+            
+            if (!eventId) {
+                // MODE CRÉATION
                 calendar.createSchedules([{
-                    id: eventId,
+                    id: newId,
                     calendarId: calendarId,
                     title: title,
                     start: start,
                     end: end,
                     isAllDay: false,
                     category: 'time',
-                    raw: {
-                        calendarColor: calendarColor,
-                        categoryColor: categoryColor,
-                        categoryTextColor: categoryTextColor,
-                        categoryId: categoryId
-                    }
+                    raw: eventData.raw
                 }]);
             } else {
-                calendar.updateSchedule(eventId, calendarId, {
-                    title: title,
-                    start: start,
-                    end: end,
-                    raw: {
-                        calendarColor: calendarColor,
-                        categoryColor: categoryColor,
-                        categoryTextColor: categoryTextColor,
-                        categoryId: categoryId
-                    }
-                });
+                // MODE ÉDITION
+                const originalCalendarId = document.getElementById('originalCalendarId').value;
+                
+                if (originalCalendarId !== calendarId) {
+                    // Changement de calendrier - supprimer l'ancien et créer le nouveau
+                    calendar.deleteSchedule(eventId, originalCalendarId);
+                    
+                    calendar.createSchedules([{
+                        id: eventId,
+                        calendarId: calendarId,
+                        title: title,
+                        start: start,
+                        end: end,
+                        isAllDay: false,
+                        category: 'time',
+                        raw: eventData.raw
+                    }]);
+                } else {
+                    // Mise à jour simple
+                    calendar.updateSchedule(eventId, calendarId, {
+                        title: title,
+                        start: start,
+                        end: end,
+                        raw: eventData.raw
+                    });
+                }
             }
             
             calendar.render();
-        }
-        console.log('--- FIN LOGS DE DÉBOGAGE ---');
+            requestArrowHandlersUpdate(300);
+            
+            // Fermer le modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('createEventModal'));
+            modal.hide();
+        });
 
-        const modal = bootstrap.Modal.getInstance(document.getElementById('createEventModal'));
-        modal.hide();
+        console.log('--- FIN LOGS DE DÉBOGAGE ---');
     }
     
     /**
@@ -574,23 +729,45 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log("Création d'une copie avec dates:", formatDateForInput(newStart), "à", formatDateForInput(newEnd));
         
-        try {
-            calendar.createSchedules([{
-                id: String(new Date().getTime()),
-                calendarId: scheduleData.calendarId,
-                title: scheduleData.title,
-                start: newStart,
-                end: newEnd,
-                isAllDay: scheduleData.isAllDay,
-                category: scheduleData.category,
-                raw: scheduleData.raw
-            }]);
-            console.log("Copie créée avec succès");
-        } catch (error) {
-            console.error("Erreur lors de la création de la copie:", error);
-        }
+        // Préparer les données pour le backend
+        const newEventData = {
+            title: scheduleData.title,
+            calendarId: scheduleData.calendarId,
+            start: newStart,
+            end: newEnd,
+            isAllDay: scheduleData.isAllDay,
+            category: scheduleData.category,
+            categoryId: scheduleData.raw?.categoryId,
+            raw: scheduleData.raw
+        };
         
-        calendar.render();
+        // Envoyer au backend et mettre à jour l'UI
+        CalendarBackend.saveEvent(newEventData, function(error, response) {
+            if (error) {
+                console.error("Erreur lors de la création de la copie:", error);
+                return;
+            }
+            
+            try {
+                // Créer l'événement dans le calendrier UI avec l'ID renvoyé par le serveur
+                calendar.createSchedules([{
+                    id: response.id || String(new Date().getTime()),
+                    calendarId: scheduleData.calendarId,
+                    title: scheduleData.title,
+                    start: newStart,
+                    end: newEnd,
+                    isAllDay: scheduleData.isAllDay,
+                    category: scheduleData.category,
+                    raw: scheduleData.raw
+                }]);
+                console.log("Copie créée avec succès");
+                
+                // Mettre à jour les flèches
+                requestArrowHandlersUpdate(300);
+            } catch (error) {
+                console.error("Erreur lors de la création de la copie dans l'UI:", error);
+            }
+        });
     }
     
     /**
@@ -615,80 +792,79 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Flèches d\'extension ajoutées');
     }
     
-    // Modifier la fonction qui crée les flèches
-function addExtensionArrows(calendar, calendarIds) {
-    const currentView = calendar.getViewName();
-    if (currentView !== 'week') return;   
-    
-    
-    // Attendre que le DOM soit complètement rendu
-    setTimeout(() => {
-        const events = document.querySelectorAll('.tui-full-calendar-time-schedule');
-        console.log(`Ajout de flèches pour ${events.length} événements`);
+    // Fonction qui crée les flèches pour les événements
+    function addExtensionArrows(calendar, calendarIds) {
+        const currentView = calendar.getViewName();
+        if (currentView !== 'week') return;   
         
-        events.forEach(event => {
-            const scheduleId = event.getAttribute('data-schedule-id');
-            if (!scheduleId) return;
+        
+        // Attendre que le DOM soit complètement rendu
+        setTimeout(() => {
+            const events = document.querySelectorAll('.tui-full-calendar-time-schedule');
+            console.log(`Ajout de flèches pour ${events.length} événements`);
             
-            // Trouver l'élément de contenu où nous insérerons les flèches
-            const contentElement = event.querySelector('.event-content') || event;
-            
-            // Vérifier si les flèches existent déjà pour éviter les doublons
-            if (contentElement.querySelector('.event-extension-arrow')) return;
-            
-            // Chercher les données de l'événement
-            let scheduleData = null;
-            let foundCalendarId = null;
-            
-            for (const calId of calendarIds) {
-                const schedule = calendar.getSchedule(scheduleId, calId.toString());
-                if (schedule) {
-                    foundCalendarId = calId.toString();
-                    
-                    scheduleData = {
-                        id: schedule.id,
-                        calendarId: schedule.calendarId,
-                        title: schedule.title,
-                        start: schedule.start._date.toISOString(),
-                        end: schedule.end._date.toISOString(),
-                        isAllDay: schedule.isAllDay,
-                        category: schedule.category,
-                        raw: schedule.raw || {}
-                    };
-                    break;
+            events.forEach(event => {
+                const scheduleId = event.getAttribute('data-schedule-id');
+                if (!scheduleId) return;
+                
+                // Trouver l'élément de contenu où nous insérerons les flèches
+                const contentElement = event.querySelector('.event-content') || event;
+                
+                // Vérifier si les flèches existent déjà pour éviter les doublons
+                if (contentElement.querySelector('.event-extension-arrow')) return;
+                
+                // Chercher les données de l'événement
+                let scheduleData = null;
+                let foundCalendarId = null;
+                
+                for (const calId of calendarIds) {
+                    const schedule = calendar.getSchedule(scheduleId, calId.toString());
+                    if (schedule) {
+                        foundCalendarId = calId.toString();
+                        
+                        scheduleData = {
+                            id: schedule.id,
+                            calendarId: schedule.calendarId,
+                            title: schedule.title,
+                            start: schedule.start._date.toISOString(),
+                            end: schedule.end._date.toISOString(),
+                            isAllDay: schedule.isAllDay,
+                            category: schedule.category,
+                            raw: schedule.raw || {}
+                        };
+                        break;
+                    }
                 }
-            }
-            
-            if (!foundCalendarId || !scheduleData) return;
-            
-            const scheduleDataJson = JSON.stringify(scheduleData);
-            
-            // Style à ajouter au conteneur d'événement
-            contentElement.style.position = 'relative';
-            
-            // Créer la flèche gauche
-            const leftArrow = document.createElement('div');
-            leftArrow.className = 'event-extension-arrow left';
-            leftArrow.innerHTML = '<i class="fas fa-chevron-left"></i>';
-            leftArrow.setAttribute('data-schedule-id', scheduleId);
-            leftArrow.setAttribute('data-calendar-id', foundCalendarId);
-            leftArrow.setAttribute('data-schedule-data', scheduleDataJson);
-            
-            // Créer la flèche droite
-            const rightArrow = document.createElement('div');
-            rightArrow.className = 'event-extension-arrow right';
-            rightArrow.innerHTML = '<i class="fas fa-chevron-right"></i>';
-            rightArrow.setAttribute('data-schedule-id', scheduleId);
-            rightArrow.setAttribute('data-calendar-id', foundCalendarId);
-            rightArrow.setAttribute('data-schedule-data', scheduleDataJson);
-            
-            // Les ajouter au conteneur de l'événement
-            contentElement.appendChild(leftArrow);
-            contentElement.appendChild(rightArrow);
-        });
-    }, 100);
-}
-
+                
+                if (!foundCalendarId || !scheduleData) return;
+                
+                const scheduleDataJson = JSON.stringify(scheduleData);
+                
+                // Style à ajouter au conteneur d'événement
+                contentElement.style.position = 'relative';
+                
+                // Créer la flèche gauche
+                const leftArrow = document.createElement('div');
+                leftArrow.className = 'event-extension-arrow left';
+                leftArrow.innerHTML = '<i class="fas fa-chevron-left"></i>';
+                leftArrow.setAttribute('data-schedule-id', scheduleId);
+                leftArrow.setAttribute('data-calendar-id', foundCalendarId);
+                leftArrow.setAttribute('data-schedule-data', scheduleDataJson);
+                
+                // Créer la flèche droite
+                const rightArrow = document.createElement('div');
+                rightArrow.className = 'event-extension-arrow right';
+                rightArrow.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                rightArrow.setAttribute('data-schedule-id', scheduleId);
+                rightArrow.setAttribute('data-calendar-id', foundCalendarId);
+                rightArrow.setAttribute('data-schedule-data', scheduleDataJson);
+                
+                // Les ajouter au conteneur de l'événement
+                contentElement.appendChild(leftArrow);
+                contentElement.appendChild(rightArrow);
+            });
+        }, 100);
+    }
 
     /**
      * Fonctions pour les modaux

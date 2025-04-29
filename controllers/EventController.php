@@ -22,6 +22,16 @@ class EventController {
     }
     
     /**
+     * Retourne une réponse JSON avec le code d'état HTTP approprié
+     */
+    private function jsonResponse($data, $statusCode = 200) {
+        header('Content-Type: application/json');
+        http_response_code($statusCode);
+        echo json_encode($data);
+        exit;
+    }
+    
+    /**
      * Afficher le formulaire de création d'un événement
      */
     public function create() {
@@ -899,6 +909,143 @@ class EventController {
         $string = str_replace("\\,", ",", $string);
         $string = str_replace("\\;", ";", $string);
         return $string;
+    }
+
+    /**
+     * API : Récupérer les événements pour une période donnée avec debug amélioré
+     */
+    public function getEvents() {
+        try {
+            
+            
+            // Fonction helper pour logger les messages
+            $logger = function($message)  {
+                $formattedMessage = '[' . date('Y-m-d H:i:s') . '] [getEvents] ' . $message;
+                error_log($formattedMessage);
+            };
+            
+            // ----- DÉBOGAGE : Vérification d'authentification -----
+            if (!isset($_SESSION['user_id'])) {
+                $logger("Erreur: Utilisateur non authentifié");
+                $this->jsonResponse(['success' => false, 'error' => 'auth', 'message' => 'Utilisateur non authentifié'], 401);
+                return;
+            }
+            
+            $user_id = $_SESSION['user_id'];
+            $logger("Utilisateur authentifié: " . $user_id);
+            
+            // ----- DÉBOGAGE : Paramètres de la requête -----
+            $start = isset($_GET['start']) ? $_GET['start'] : date('Y-m-d', strtotime('-1 month'));
+            $end = isset($_GET['end']) ? $_GET['end'] : date('Y-m-d', strtotime('+1 month'));
+            $logger("Période demandée: " . $start . " à " . $end);
+            
+            // ----- DÉBOGAGE : Calendriers de l'utilisateur -----
+            $calendars = $this->calendarModel->getByUserId($user_id);
+            if (empty($calendars)) {
+                $logger("Aucun calendrier trouvé pour l'utilisateur " . $user_id);
+                $this->jsonResponse(['success' => true, 'data' => [], 'message' => 'Aucun calendrier trouvé']);
+                return;
+            }
+            
+            $calendarIds = array_column($calendars, 'calendar_id');
+            $logger("Calendriers trouvés: " . implode(', ', $calendarIds));
+            
+            // ----- DÉBOGAGE : Vérification de la méthode getEventsByDateRange -----
+            if (!method_exists($this->eventModel, 'getEventsByDateRange')) {
+                $logger("ERREUR CRITIQUE: Méthode getEventsByDateRange non trouvée dans Event model");
+                $this->jsonResponse([
+                    'success' => false, 
+                    'error' => 'method',
+                    'message' => 'Méthode getEventsByDateRange non implémentée'
+                ], 500);
+                return;
+            }
+            
+            // ----- DÉBOGAGE : Exécution de la requête avec try/catch -----
+            try {
+                $logger("Récupération des événements...");
+                $events = $this->eventModel->getEventsByDateRange($calendarIds, $start, $end);
+                $logger(count($events) . " événements trouvés");
+            } catch (Exception $e) {
+                $logger("Exception lors de la récupération des événements: " . $e->getMessage());
+                $this->jsonResponse([
+                    'success' => false, 
+                    'error' => 'db',
+                    'message' => 'Erreur lors de la récupération des événements: ' . $e->getMessage()
+                ], 500);
+                return;
+            }
+            
+            // ----- DÉBOGAGE : Formatage des événements -----
+            $formattedEvents = [];
+            foreach ($events as $event) {
+                // Récupérer les couleurs du calendrier et de la catégorie
+                $calendarColor = '#3788d8'; // Couleur par défaut
+                $categoryColor = '#9e9e9e'; // Couleur par défaut
+                $categoryTextColor = '#ffffff'; // Couleur par défaut
+                
+                foreach ($calendars as $cal) {
+                    if ($cal['calendar_id'] == $event['calendar_id']) {
+                        $calendarColor = $cal['color'];
+                        break;
+                    }
+                }
+                
+                if (!empty($event['category_id'])) {
+                    try {
+                        $category = $this->categoryModel->getById($event['category_id']);
+                        if ($category) {
+                            $categoryColor = $category['color'];
+                            $categoryTextColor = $category['text_color'];
+                        }
+                    } catch (Exception $e) {
+                        $logger("Erreur avec la catégorie ID " . $event['category_id'] . ": " . $e->getMessage());
+                        // Continuer avec les valeurs par défaut
+                    }
+                }
+                
+                $formattedEvents[] = [
+                    'id' => $event['event_id'],
+                    'calendarId' => $event['calendar_id'],
+                    'categoryId' => $event['category_id'],
+                    'title' => $event['title'],
+                    'body' => $event['body'],
+                    'start' => $event['start_date'],
+                    'end' => $event['end_date'],
+                    'isAllDay' => (bool)$event['is_all_day'],
+                    'location' => $event['location'],
+                    'isRecurring' => (bool)$event['is_recurring'],
+                    'calendarColor' => $calendarColor,
+                    'categoryColor' => $categoryColor,
+                    'categoryTextColor' => $categoryTextColor
+                ];
+            }
+            
+            $logger("Réponse envoyée avec " . count($formattedEvents) . " événements formatés");
+            
+            // Réponse finale
+            $this->jsonResponse([
+                'success' => true,
+                'count' => count($formattedEvents),
+                'start' => $start,
+                'end' => $end,
+                'data' => $formattedEvents
+            ]);
+            
+        } catch (Exception $e) {
+            // En cas d'exception non gérée, s'assurer que le log est écrit
+            $errorMessage = "Exception non gérée: " . $e->getMessage();
+            $traceMessage = "Trace: " . $e->getTraceAsString();
+            
+            error_log($errorMessage);
+            error_log($traceMessage);
+            
+            $this->jsonResponse([
+                'success' => false,
+                'error' => 'exception',
+                'message' => 'Erreur serveur: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
 ?>

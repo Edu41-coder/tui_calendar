@@ -134,6 +134,60 @@ class Event {
     }
     
     /**
+     * Obtenir les événements pour une période spécifique et plusieurs calendriers
+     * 
+     * @param array $calendar_ids Tableau d'IDs de calendriers
+     * @param string $start_date Date de début au format 'YYYY-MM-DD'
+     * @param string $end_date Date de fin au format 'YYYY-MM-DD'
+     * @return array Liste des événements avec détails
+     */
+    public function getEventsByDateRange($calendar_ids, $start_date, $end_date) {
+        if (empty($calendar_ids)) {
+            return [];
+        }
+        
+        // Construire la condition IN pour les calendriers
+        $placeholders = implode(',', array_fill(0, count($calendar_ids), '?'));
+        
+        // Construire la requête complète avec jointures pour récupérer les détails
+        $query = "SELECT e.*, c.name as calendar_name, c.color as calendar_color, 
+                 cat.name as category_name, cat.color as category_color, 
+                 cat.text_color as category_text_color
+                 FROM events e 
+                 LEFT JOIN calendars c ON e.calendar_id = c.calendar_id 
+                 LEFT JOIN categories cat ON e.category_id = cat.category_id
+                 WHERE e.calendar_id IN ($placeholders)
+                 AND ((e.start_date BETWEEN ? AND ?) 
+                     OR (e.end_date BETWEEN ? AND ?) 
+                     OR (e.start_date <= ? AND e.end_date >= ?)) 
+                 ORDER BY e.start_date";
+        
+        // Préparer les paramètres pour la requête
+        $params = array_merge($calendar_ids, [$start_date, $end_date, $start_date, $end_date, $start_date, $end_date]);
+        
+        // Déterminer les types de paramètres
+        $types = str_repeat('i', count($calendar_ids)) . 'ssssss';
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        
+        $result = $stmt->get_result();
+        $events = [];
+        
+        if ($result->num_rows > 0) {
+            while($row = $result->fetch_assoc()) {
+                // Transformer les colonnes de date en format ISO pour le frontend
+                $row['start_date'] = date('c', strtotime($row['start_date']));
+                $row['end_date'] = date('c', strtotime($row['end_date']));
+                $events[] = $row;
+            }
+        }
+        
+        return $events;
+    }
+    
+    /**
      * Créer un nouvel événement
      * 
      * @param array $data Données de l'événement
@@ -267,7 +321,7 @@ class Event {
         $stmt->bind_param("i", $calendar_id);
         
         return $stmt->execute();
-    }
+    }    
     
     /**
      * Obtenir les événements avec des informations sur le calendrier et la catégorie

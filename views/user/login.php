@@ -2,7 +2,7 @@
 $pageTitle = 'Connexion';
 include_once __DIR__ . '/../layouts/main.php'; 
 ?>
-
+<script src="/tui_calendar/assets/js/toggle-password.js"></script>
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-6 col-lg-5">
@@ -29,6 +29,9 @@ include_once __DIR__ . '/../layouts/main.php';
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-lock"></i></span>
                                 <input type="password" class="form-control" id="password" name="password" required>
+                                <button type="button" class="btn btn-outline-secondary" id="togglePassword">
+                                    <i class="fas fa-eye" id="togglePasswordIcon"></i>
+                                </button>
                             </div>
                         </div>
                         

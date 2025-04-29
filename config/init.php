@@ -36,7 +36,7 @@ Routes::add('create-category', ['controller' => 'Calendar', 'action' => 'createC
 Routes::add('edit-category', ['controller' => 'Calendar', 'action' => 'editCategory']);
 Routes::add('delete-category', ['controller' => 'Calendar', 'action' => 'deleteCategory']);
 Routes::add('toggle-visibility', ['controller' => 'Calendar', 'action' => 'toggleCalendarVisibility']);
-Routes::add('get-events', ['controller' => 'Calendar', 'action' => 'getEvents']);
+Routes::add('get-events', ['controller' => 'Event', 'action' => 'getEvents']);
 
 // Routes Événement
 Routes::add('event-create', ['controller' => 'Event', 'action' => 'create']);

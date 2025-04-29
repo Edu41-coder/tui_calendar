@@ -127,7 +127,8 @@
     <!-- TUI Date Picker JS -->
     <script src="/tui_calendar/assets/js/tui-date-picker.js"></script>    
     <!-- TUI Calendar JS -->
-    <script src="/tui_calendar/assets/js/tui-calendar.js"></script>
+    <script src="/tui_calendar/assets/js/tui-calendar.js"></script>   
+    
     <?php endif; ?>
     
     <!-- Scripts spécifiques à la page -->
