@@ -1,5 +1,10 @@
 <?php
 $pageTitle = 'Gérer les catégories';
+$breadcrumbs = [
+    'Calendriers' => Routes::url('calendar', 'index'),
+    'Paramètres' => Routes::url('user', 'settings'),
+    'Catégories' => '#'
+];
 include_once __DIR__ . '/../layouts/main.php';
 ?>
 

@@ -1,5 +1,10 @@
 <?php
 $pageTitle = 'Créer une catégorie';
+$breadcrumbs = [
+    'Calendriers' => Routes::url('calendar', 'index'),
+    'Catégories' => Routes::url('calendar', 'categories'),
+    'Nouvelle catégorie' => '#'
+];
 include_once __DIR__ . '/../layouts/main.php';
 ?>
 

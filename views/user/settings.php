@@ -1,5 +1,9 @@
 <?php
 $pageTitle = 'Paramètres du calendrier';
+$breadcrumbs = [
+    'Calendriers' => Routes::url('calendar', 'index'),
+    'Paramètres' => '#'
+];
 include_once __DIR__ . '/../layouts/main.php';
 ?>
 

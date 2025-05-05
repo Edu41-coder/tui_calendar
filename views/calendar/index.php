@@ -2,6 +2,10 @@
 <?php
 $pageTitle = 'Mon Calendrier';
 $includeCalendarAssets = true;
+$breadcrumbs = [
+    'Calendriers' => Routes::url('Calendar', 'calendars'),
+    'Mon Calendrier' => '#'
+];
 
 // Transmettre les données PHP au JavaScript
 $calendarDataForJS = [];
@@ -35,8 +39,8 @@ $pageScripts = <<<HTML
 </script>
 
 <!-- Inclure les scripts factorisés -->
-<script src="/tui_calendar/assets/js/frontend-calendar.js"></script>
 <script src="/tui_calendar/assets/js/backend-calendar.js"></script>
+<script src="/tui_calendar/assets/js/frontend-calendar.js"></script>
 
 HTML;
 
@@ -211,6 +215,13 @@ ob_start();
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                    </div>
+                    <!-- Ajoute ceci dans le formulaire du modal de création -->
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="eventAllDay" name="is_all_day">
+                        <label class="form-check-label" for="eventAllDay">
+                            Toute la journée
+                        </label>
                     </div>
                 </form>
             </div>

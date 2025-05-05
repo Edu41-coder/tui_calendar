@@ -1,4 +1,7 @@
 <?php
+// Définir le fuseau horaire par défaut pour PHP
+date_default_timezone_set('Europe/Paris');
+
 // Charger la configuration de la base de données
 require_once __DIR__ . '/db_config.php';
 

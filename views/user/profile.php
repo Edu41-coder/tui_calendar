@@ -1,4 +1,11 @@
-<?php include_once __DIR__ . '/../layouts/main.php'; ?>
+<?php 
+$pageTitle = 'Mon Profil';
+$breadcrumbs = [
+    'Calendriers' => Routes::url('calendar', 'index'),
+    'Compte' => Routes::url('user', 'settings'),
+    'Mon Profil' => '#'
+];
+include_once __DIR__ . '/../layouts/main.php'; ?>
 <script src="/tui_calendar/assets/js/toggle-password.js"></script>
 <div class="container py-5">
     <div class="row">

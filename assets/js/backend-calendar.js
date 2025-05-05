@@ -95,23 +95,62 @@ const CalendarBackend = (function() {
                 }
             }
         });
-    }
-    
+    }    
+
     /**
      * Déplacer un événement (drag & drop)
      * @param {Object} moveData - Données du déplacement
      * @param {Function} callback - Fonction de rappel (facultatif)
      */
     function moveEvent(moveData, callback) {
-        // S'assurer que les dates sont au format ISO
+        // IMPORTANT: Utiliser formatLocalISOString au lieu de toISOString()
         if (moveData.start instanceof Date) {
-            moveData.start = moveData.start.toISOString();
+            moveData.start = formatLocalISOString(moveData.start);
+        } else if (moveData.start && moveData.start._date) {
+            // Gérer le cas TZDate
+            moveData.start = formatLocalISOString(moveData.start._date);
         }
+        
         if (moveData.end instanceof Date) {
-            moveData.end = moveData.end.toISOString();
+            moveData.end = formatLocalISOString(moveData.end);
+        } else if (moveData.end && moveData.end._date) {
+            // Gérer le cas TZDate
+            moveData.end = formatLocalISOString(moveData.end._date);
+        }
+        
+        // Détection automatique des événements sur toute la journée
+        let startObj = null, endObj = null;
+        
+        if (moveData.start instanceof Date) {
+            startObj = moveData.start;
+        } else if (moveData.start && moveData.start._date) {
+            startObj = moveData.start._date;
+        } else if (typeof moveData.start === 'string') {
+            startObj = new Date(moveData.start);
+        }
+        
+        if (moveData.end instanceof Date) {
+            endObj = moveData.end;
+        } else if (moveData.end && moveData.end._date) {
+            endObj = moveData.end._date;
+        } else if (typeof moveData.end === 'string') {
+            endObj = new Date(moveData.end);
+        }
+        
+        // Si les deux objets Date sont disponibles, vérifier si c'est un événement sur toute la journée
+        if (startObj && endObj) {
+            const startIsMidnight = startObj.getHours() === 0 && startObj.getMinutes() === 0;
+            const endIs2359 = endObj.getHours() === 23 && endObj.getMinutes() === 59;
+            
+            if (startIsMidnight && endIs2359) {
+                moveData.isAllDay = true;
+                console.log('Événement déplacé détecté comme "toute la journée" basé sur les heures');
+            }
         }
         
         console.log('Déplacement d\'événement:', moveData);
+        console.log('Date de début formatée:', moveData.start);
+        console.log('Date de fin formatée:', moveData.end);
         
         $.ajax({
             url: baseUrl + 'ajax-handler.php?action=move-event',
@@ -261,6 +300,30 @@ const CalendarBackend = (function() {
     }
     
     /**
+     * Récupérer un événement spécifique par son ID
+     * @param {String|Number} eventId - ID de l'événement
+     * @param {String|Number} calendarId - ID du calendrier
+     * @param {Function} callback - Fonction de rappel (facultatif)
+     */
+    function getEvent(eventId, calendarId, callback) {
+        const url = `${baseUrl}ajax-handler.php?action=get-event&id=${eventId}&calendarId=${calendarId}`;
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    callback && callback(null, data.event);
+                } else {
+                    callback && callback(data.message || 'Erreur lors de la récupération de l\'événement', null);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lors de la récupération de l\'événement:', error);
+                callback && callback('Erreur réseau lors de la récupération de l\'événement', null);
+            });
+    }
+
+    /**
      * Format d'événement pour l'envoi au backend
      * @param {Object} eventData - Données de l'événement
      * @returns {Object} - Données formatées
@@ -273,25 +336,53 @@ const CalendarBackend = (function() {
             categoryId: eventData.raw?.categoryId || eventData.categoryId,
             body: eventData.body || '',
             location: eventData.location || '',
-            isAllDay: eventData.isAllDay || false
+            isAllDay: eventData.isAllDay || false            
         };
         
-        // Gestion des dates
+        // IMPORTANT: Envoyer les dates au format ISO local (sans Z)
         if (eventData.start) {
-            formattedData.start = eventData.start instanceof Date ? eventData.start.toISOString() : eventData.start;
+            if (eventData.start instanceof Date) {
+                // Format ISO local
+                formattedData.start = formatLocalISOString(eventData.start);
+            } else if (eventData.start && eventData.start._date) {
+                // Objet TZDate
+                formattedData.start = formatLocalISOString(eventData.start._date);
+            } else {
+                // Autres formats (chaîne, etc.)
+                formattedData.start = eventData.start;
+            }
+            
+            console.log('Date de début envoyée:', formattedData.start);
         }
         
         if (eventData.end) {
-            formattedData.end = eventData.end instanceof Date ? eventData.end.toISOString() : eventData.end;
-        }
-        
-        // Ajouter d'autres propriétés si nécessaire
-        if (eventData.isRecurring) {
-            formattedData.isRecurring = eventData.isRecurring;
-            formattedData.recurrenceRule = eventData.recurrenceRule || '';
+            if (eventData.end instanceof Date) {
+                // Format ISO local
+                formattedData.end = formatLocalISOString(eventData.end);
+            } else if (eventData.end && eventData.end._date) {
+                // Objet TZDate
+                formattedData.end = formatLocalISOString(eventData.end._date);
+            } else {
+                // Autres formats (chaîne, etc.)
+                formattedData.end = eventData.end;
+            }
+                
+            console.log('Date de fin envoyée:', formattedData.end);
         }
         
         return formattedData;
+    }
+    
+    // Fonction locale pour formater les dates sans le Z de UTC
+    function formatLocalISOString(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        
+        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
     }
     
     // Exposer l'API publique
@@ -300,6 +391,7 @@ const CalendarBackend = (function() {
         saveEvent: saveEvent,
         moveEvent: moveEvent,
         deleteEvent: deleteEvent,
-        loadEvents: loadEvents
+        loadEvents: loadEvents,
+        getEvent: getEvent
     };
 })();

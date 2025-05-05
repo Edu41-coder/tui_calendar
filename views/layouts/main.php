@@ -103,6 +103,29 @@
             <?php unset($_SESSION['error_message']); ?>
         <?php endif; ?>
         
+        <!-- Fil d'Ariane -->
+        <div class="container mt-3 mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <?php if (isset($breadcrumbs) && is_array($breadcrumbs)): ?>
+                        <li class="breadcrumb-item"><a href="<?= Routes::url('calendar', 'index') ?>"><i class="fas fa-home"></i> Accueil</a></li>
+                        <?php foreach ($breadcrumbs as $label => $url): ?>
+                            <?php if ($url === '#' || $url === ''): ?>
+                                <li class="breadcrumb-item active" aria-current="page"><?= $label ?></li>
+                            <?php else: ?>
+                                <li class="breadcrumb-item"><a href="<?= $url ?>"><?= $label ?></a></li>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <li class="breadcrumb-item"><a href="<?= Routes::url('calendar', 'index') ?>"><i class="fas fa-home"></i> Accueil</a></li>
+                        <?php if (isset($pageTitle)): ?>
+                            <li class="breadcrumb-item active" aria-current="page"><?= $pageTitle ?></li>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                </ol>
+            </nav>
+        </div>
+        
         <!-- Le contenu spécifique de chaque page sera inséré ici -->
         <?php if (isset($content)): ?>
             <?= $content ?>

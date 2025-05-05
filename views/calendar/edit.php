@@ -1,5 +1,10 @@
 <?php 
 $pageTitle = 'Modifier le calendrier';
+$breadcrumbs = [
+    'Calendriers' => Routes::url('calendar', 'index'),
+    'Gérer les calendriers' => Routes::url('calendar', 'calendars'),
+    'Modifier le calendrier' => '#'
+];
 include_once __DIR__ . '/../layouts/main.php'; 
 ?>
 

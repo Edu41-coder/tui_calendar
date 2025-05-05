@@ -151,16 +151,16 @@ class Event {
         
         // Construire la requête complète avec jointures pour récupérer les détails
         $query = "SELECT e.*, c.name as calendar_name, c.color as calendar_color, 
-                 cat.name as category_name, cat.color as category_color, 
-                 cat.text_color as category_text_color
-                 FROM events e 
-                 LEFT JOIN calendars c ON e.calendar_id = c.calendar_id 
-                 LEFT JOIN categories cat ON e.category_id = cat.category_id
-                 WHERE e.calendar_id IN ($placeholders)
-                 AND ((e.start_date BETWEEN ? AND ?) 
-                     OR (e.end_date BETWEEN ? AND ?) 
-                     OR (e.start_date <= ? AND e.end_date >= ?)) 
-                 ORDER BY e.start_date";
+         cat.name as category_name, cat.color as category_color, 
+         cat.color as category_text_color
+         FROM events e 
+         LEFT JOIN calendars c ON e.calendar_id = c.calendar_id 
+         LEFT JOIN categories cat ON e.category_id = cat.category_id
+         WHERE e.calendar_id IN ($placeholders)
+         AND ((e.start_date BETWEEN ? AND ?) 
+             OR (e.end_date BETWEEN ? AND ?) 
+             OR (e.start_date <= ? AND e.end_date >= ?)) 
+         ORDER BY e.start_date";
         
         // Préparer les paramètres pour la requête
         $params = array_merge($calendar_ids, [$start_date, $end_date, $start_date, $end_date, $start_date, $end_date]);
