@@ -93,44 +93,42 @@ class Event {
     }
     
     /**
-     * Obtenir les événements pour une période spécifique
-     * 
-     * @param string $start_date Date de début au format 'YYYY-MM-DD'
-     * @param string $end_date Date de fin au format 'YYYY-MM-DD'
-     * @param int|null $calendar_id ID du calendrier (optionnel)
+     * Récupère les événements dans une plage de dates en préservant les heures exactes
+     * @param string $startDate Date de début au format MySQL (Y-m-d H:i:s)
+     * @param string $endDate Date de fin au format MySQL (Y-m-d H:i:s)
+     * @param bool $preserveHours Si true, conserve les heures exactes des événements
      * @return array Liste des événements
      */
-    public function getByDateRange($start_date, $end_date, $calendar_id = null) {
-        if ($calendar_id) {
-            $query = "SELECT * FROM events 
-                     WHERE ((start_date BETWEEN ? AND ?) 
-                     OR (end_date BETWEEN ? AND ?) 
-                     OR (start_date <= ? AND end_date >= ?)) 
-                     AND calendar_id = ? 
-                     ORDER BY start_date";
-            $stmt = $this->conn->prepare($query);
-            $stmt->bind_param("ssssssi", $start_date, $end_date, $start_date, $end_date, $start_date, $end_date, $calendar_id);
-        } else {
-            $query = "SELECT * FROM events 
-                     WHERE (start_date BETWEEN ? AND ?) 
-                     OR (end_date BETWEEN ? AND ?) 
-                     OR (start_date <= ? AND end_date >= ?) 
-                     ORDER BY start_date";
-            $stmt = $this->conn->prepare($query);
-            $stmt->bind_param("ssssss", $start_date, $end_date, $start_date, $end_date, $start_date, $end_date);
-        }
-        $stmt->execute();
-        
-        $result = $stmt->get_result();
-        $events = [];
-        
-        if ($result->num_rows > 0) {
-            while($row = $result->fetch_assoc()) {
-                $events[] = $row;
+    public function getByDateRange($startDate, $endDate, $preserveHours = false) {
+        try {
+            // Utiliser $this->conn au lieu de getConnection()
+            $sql = "SELECT e.*, c.name AS calendar_name, c.color AS calendar_color 
+                    FROM events e 
+                    LEFT JOIN calendars c ON e.calendar_id = c.calendar_id
+                    WHERE 
+                        (e.start_date BETWEEN ? AND ?) OR
+                        (e.end_date BETWEEN ? AND ?) OR
+                        (e.start_date <= ? AND e.end_date >= ?)";
+            
+            // Adapter pour mysqli
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("ssssss", $startDate, $endDate, $startDate, $endDate, $startDate, $endDate);
+            $stmt->execute();
+            
+            $result = $stmt->get_result();
+            $events = [];
+            
+            if ($result->num_rows > 0) {
+                while($row = $result->fetch_assoc()) {
+                    $events[] = $row;
+                }
             }
+            
+            return $events;
+        } catch (Exception $e) {
+            error_log("Erreur dans Event::getByDateRange: " . $e->getMessage());
+            return [];
         }
-        
-        return $events;
     }
     
     /**

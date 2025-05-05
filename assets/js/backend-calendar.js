@@ -253,14 +253,15 @@ const CalendarBackend = (function() {
      * @param {Date|String} start - Date de début
      * @param {Date|String} end - Date de fin
      * @param {Function} callback - Fonction de rappel
+     * @param {Boolean} preserveHours - Conserver les heures dans les dates
      */
-    function loadEvents(start, end, callback) {
-        // Formater les dates si nécessaire
+    function loadEvents(start, end, callback, preserveHours = false) {
+        // Formater les dates en conservant les heures pour la vue jour
         if (start instanceof Date) {
-            start = start.toISOString().split('T')[0]; // Format YYYY-MM-DD
+            start = preserveHours ? start.toISOString() : start.toISOString().split('T')[0];
         }
         if (end instanceof Date) {
-            end = end.toISOString().split('T')[0]; // Format YYYY-MM-DD
+            end = preserveHours ? end.toISOString() : end.toISOString().split('T')[0];
         }
         
         console.log('Chargement des événements du', start, 'au', end);
@@ -322,6 +323,39 @@ const CalendarBackend = (function() {
                 callback && callback('Erreur réseau lors de la récupération de l\'événement', null);
             });
     }
+    /**
+ * Charger les événements pour une vue jour en préservant les heures
+ */
+
+function loadDayViewEvents(date, callback) {
+    // S'assurer que date est un objet Date
+    const dateObj = date instanceof Date ? date : new Date(date);
+    
+    // Formater pour l'API avec les heures (ne pas tronquer)
+    const formattedDate = dateObj.toISOString();
+    
+    $.ajax({
+        url: baseUrl + 'ajax-handler.php?action=get-day-events',
+        type: 'GET',
+        data: {
+            date: formattedDate
+        },
+        dataType: 'json',
+        success: function(response) {
+            console.log('Événements vue jour chargés:', response.length || 0, 'événements');
+            if (callback && typeof callback === 'function') {
+                callback(null, response);
+            }
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            console.error('Erreur lors du chargement des événements jour:', textStatus, errorThrown);
+            if (callback && typeof callback === 'function') {
+                callback(new Error('Erreur lors du chargement des événements'), null);
+            }
+        }
+    });
+}
+
 
     /**
      * Format d'événement pour l'envoi au backend
@@ -392,6 +426,7 @@ const CalendarBackend = (function() {
         moveEvent: moveEvent,
         deleteEvent: deleteEvent,
         loadEvents: loadEvents,
+        loadDayViewEvents: loadDayViewEvents,
         getEvent: getEvent
     };
 })();

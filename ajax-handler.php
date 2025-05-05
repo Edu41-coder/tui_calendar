@@ -186,6 +186,58 @@ switch($action) {
         
         sendJsonResponse(['success' => true, 'event' => $formattedEvent]);
         break;
+
+    case 'get-day-events':
+        // Vérification du paramètre de date
+        if (!isset($_GET['date'])) {
+            sendJsonResponse(['success' => false, 'message' => 'Paramètre de date manquant']);
+            exit;
+        }
+        
+        $dateString = $_GET['date'];
+        
+        try {
+            // Convertir la date en format DateTime pour manipulation précise
+            $date = new DateTime($dateString);
+            
+            // Créer la plage pour toute la journée (00:00:00 à 23:59:59)
+            $startDate = clone $date;
+            $startDate->setTime(0, 0, 0);
+            
+            $endDate = clone $date;
+            $endDate->setTime(23, 59, 59);
+            
+            // Log pour debug
+            error_log("Recherche d'événements pour la vue jour: " . $startDate->format('Y-m-d H:i:s') . " à " . $endDate->format('Y-m-d H:i:s'));
+            
+            // Instancier les modèles nécessaires
+            $eventModel = new Event();
+            $calendarModel = new Calendar();
+            $categoryModel = new Category();
+            
+            // Récupérer les événements avec préservation des heures exactes
+            $events = $eventModel->getByDateRange(
+                $startDate->format('Y-m-d H:i:s'),
+                $endDate->format('Y-m-d H:i:s'),
+                true // paramètre pour préserver les heures exactes
+            );
+            
+            // Formater les événements pour le frontend
+            $formattedEvents = [];
+            foreach ($events as $event) {
+                $formattedEvents[] = formatEventForFrontend($event, $calendarModel, $categoryModel);
+            }
+            
+            // Log du nombre d'événements trouvés
+            error_log("Événements trouvés pour la vue jour: " . count($formattedEvents) . " événements");
+            
+            sendJsonResponse($formattedEvents);
+        }
+        catch (Exception $e) {
+            error_log("Erreur lors de la récupération des événements jour: " . $e->getMessage());
+            sendJsonResponse(['success' => false, 'message' => 'Erreur lors de la récupération des événements: ' . $e->getMessage()], 500);
+        }
+        break;
         
     default:
         header('HTTP/1.1 404 Not Found');

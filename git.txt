@@ -113,3 +113,25 @@ git reset --hard HEAD~2
 git push -f upstream develop
 
 git reset --hard 6ec4409
+
+
+
+# 1. Sauvegarder d'abord votre travail actuel (optionnel mais recommandé)
+cd /opt/lampp/htdocs/
+cp -r tui_calendar tui_calendar_backup
+
+# 2. Dans votre dossier de projet, initialiser Git si ce n'est pas déjà fait
+cd /opt/lampp/htdocs/tui_calendar
+git init
+
+# 3. Ajouter le dépôt distant
+git remote add origin https://github.com/Edu41-coder/tui_calendar.git
+
+# 4. Récupérer le contenu du dépôt distant
+git fetch origin
+
+# 5. Réinitialiser complètement le projet local avec le contenu de la branche dev_3
+git reset --hard origin/dev_3
+
+# 6. Nettoyer les fichiers non suivis qui pourraient rester
+git clean -fd
