@@ -7,6 +7,8 @@ document.addEventListener("DOMContentLoaded", function () {
   // Variables globales
   let attachHandlersTimeout = null;
   let arrowClickInProgress = false;
+  let customDayViewActive = false;
+  let customDayViewEvents = [];
 
   // Initialiser le backend
   CalendarBackend.init({
@@ -31,14 +33,9 @@ document.addEventListener("DOMContentLoaded", function () {
    */
   function reloadEvents(calendar) {
     const currentView = calendar.getViewName();
-    // Skip si on est en vue jour car elle est gérée séparément
-    if (
-      currentView === "day" &&
-      sessionStorage.getItem("calendarView") === "day"
-    ) {
-      console.log(
-        "Vue jour ignorée dans reloadEvents - gestion spéciale active"
-      );
+    // Désactiver complètement le rechargement si le flag est présent
+    if (sessionStorage.getItem("disableAutoReload") === "true") {
+      console.log("Rechargement automatique désactivé");
       return;
     }
     const rangeStart = calendar.getDateRangeStart();
@@ -56,50 +53,12 @@ document.addEventListener("DOMContentLoaded", function () {
         ? new Date(rangeEnd._date)
         : new Date(rangeEnd);
 
-    // AJOUT: Observateur DOM pour détecter les suppressions d'événements en vue jour
-    if (currentView === "day") {
-      console.log("Vue jour détectée - activation de l'observateur");
-      // Crée un observateur pour surveiller les suppressions dans le DOM
-      const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          if (mutation.removedNodes.length > 0) {
-            console.log("Éléments supprimés:", mutation.removedNodes);
-            console.log("Par:", mutation.target);
-            // Analyser les éléments supprimés pour voir si ce sont des événements
-            mutation.removedNodes.forEach((node) => {
-              if (
-                node.classList &&
-                (node.classList.contains("tui-full-calendar-time-schedule") ||
-                  node.classList.contains("event-content"))
-              ) {
-                console.log("ÉVÉNEMENT SUPPRIMÉ!", node);
-              }
-            });
-          }
-        });
-      });
-
-      // Observer les changements dans le conteneur du calendrier
-      setTimeout(() => {
-        const container = document.querySelector(
-          ".tui-full-calendar-vlayout-container"
-        );
-        if (container) {
-          observer.observe(container, { childList: true, subtree: true });
-          console.log("Observateur DOM activé sur:", container);
-        } else {
-          console.warn("Conteneur du calendrier non trouvé pour l'observateur");
-        }
-      }, 100);
-    }
-
     CalendarBackend.loadEvents(startDate, endDate, function (error, events) {
       if (error) {
         console.error("Erreur lors du chargement des événements:", error);
         return;
       }
       addEventsToCalendar(calendar, events);
-      
     });
   }
   // Chargement initial des événements
@@ -527,81 +486,361 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Navigation entre les vues
 
+    // Remplacer le gestionnaire de vue jour existant
     document.getElementById("day-view").addEventListener("click", () => {
-      // Stocker que nous sommes en vue jour
-      sessionStorage.setItem("calendarView", "day");
+      // Indiquer que nous utilisons notre vue personnalisée
+      customDayViewActive = true;
 
-      // Changer la vue
-      calendar.changeView("day");
+      // Récupérer la date actuelle
+      const currentDate = calendar.getDate();
+      const dayStart = new Date(currentDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(currentDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      // Formater la date pour l'affichage
+      const dateStr = `${dayStart.getDate()} ${
+        [
+          "Janvier",
+          "Février",
+          "Mars",
+          "Avril",
+          "Mai",
+          "Juin",
+          "Juillet",
+          "Août",
+          "Septembre",
+          "Octobre",
+          "Novembre",
+          "Décembre",
+        ][dayStart.getMonth()]
+      } ${dayStart.getFullYear()}`;
+
+      // Mettre à jour les boutons de vue et l'en-tête
       updateViewButtons("day");
       updateCalendarHeader(calendar);
 
-      // Récupérer la période affichée
-      const rangeStart = calendar.getDateRangeStart();
-      const rangeEnd = calendar.getDateRangeEnd();
-      const startDate =
-        rangeStart instanceof Date
-          ? rangeStart
-          : rangeStart._date
-          ? new Date(rangeStart._date)
-          : new Date(rangeStart);
-      const endDate =
-        rangeEnd instanceof Date
-          ? rangeEnd
-          : rangeEnd._date
-          ? new Date(rangeEnd._date)
-          : new Date(rangeEnd);
+      // Charger les événements via AJAX
+      CalendarBackend.loadEvents(
+        dayStart.toISOString().split("T")[0],
+        dayEnd.toISOString().split("T")[0],
+        function (error, events) {
+          if (error) {
+            console.error(
+              "Erreur lors du chargement des événements du jour:",
+              error
+            );
+            return;
+          }
 
-      // Charger les événements avec traitement spécial
-      CalendarBackend.loadEvents(startDate, endDate, function (error, events) {
-        if (error) {
-          console.error("Erreur lors du chargement des événements:", error);
-          return;
+          console.log(`Vue jour: ${events.length} événements chargés`);
+          customDayViewEvents = events;
+
+          // Créer notre propre vue jour
+          const calendarContainer = document.querySelector("#calendar");
+
+          // Sauvegarder le contenu original pour pouvoir revenir aux autres vues
+          const originalContent = calendarContainer.innerHTML;
+          calendarContainer.setAttribute(
+            "data-original-content",
+            originalContent
+          );
+
+          // Créer le HTML de notre vue jour personnalisée
+          let customDayViewHTML = `
+                <div class="custom-day-view">
+                    <h2 class="day-date">${dateStr}</h2>
+                    <div class="day-events-container">
+                        <div class="all-day-events">
+                            <h3>Toute la journée</h3>
+                            <div class="events-list">`;
+
+          // Ajouter les événements toute la journée
+          const allDayEvents = events.filter((event) => event.isAllDay);
+          if (allDayEvents.length > 0) {
+            allDayEvents.forEach((event) => {
+              customDayViewHTML += `
+                        <div class="event all-day" 
+                             data-event-id="${event.id}" 
+                             data-calendar-id="${event.calendarId}"
+                             data-is-all-day="1"
+                             style="background-color: ${event.categoryColor}; border-left: 4px solid ${event.calendarColor}; color: ${event.categoryTextColor}">
+                            <div class="event-title">${event.title}</div>
+                        </div>`;
+            });
+          } else {
+            customDayViewHTML += `<p class="no-events">Aucun événement toute la journée</p>`;
+          }
+
+          customDayViewHTML += `
+                            </div>
+                        </div>
+                        <div class="time-events">
+                            <h3>Événements horaires</h3>
+                            <div class="events-list">`;
+
+          // Ajouter les événements horaires
+          const timeEvents = events.filter((event) => !event.isAllDay);
+          if (timeEvents.length > 0) {
+            timeEvents.forEach((event) => {
+              const start = new Date(event.start);
+              const end = new Date(event.end);
+              const timeStr = `${start
+                .getHours()
+                .toString()
+                .padStart(2, "0")}:${start
+                .getMinutes()
+                .toString()
+                .padStart(2, "0")} à ${end
+                .getHours()
+                .toString()
+                .padStart(2, "0")}:${end
+                .getMinutes()
+                .toString()
+                .padStart(2, "0")}`;
+
+              customDayViewHTML += `
+                        <div class="event time-event" 
+                             data-event-id="${event.id}" 
+                             data-calendar-id="${event.calendarId}"
+                             data-is-all-day="0"
+                             style="background-color: ${
+                               event.categoryColor
+                             }; border-left: 4px solid ${
+                event.calendarColor
+              }; color: ${event.categoryTextColor}">
+                            <div class="event-time">${timeStr}</div>
+                            <div class="event-title">${event.title}</div>
+                            ${
+                              event.location
+                                ? `<div class="event-location">${event.location}</div>`
+                                : ""
+                            }
+                        </div>`;
+            });
+          } else {
+            customDayViewHTML += `<p class="no-events">Aucun événement horaire</p>`;
+          }
+
+          customDayViewHTML += `
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+
+          // Remplacer le contenu du calendrier par notre vue personnalisée
+          calendarContainer.innerHTML = customDayViewHTML;
+
+          // Ajouter les gestionnaires d'événements pour l'édition
+          // Ajouter les gestionnaires d'événements pour l'édition
+          document
+            .querySelectorAll(".custom-day-view .event")
+            .forEach((eventEl) => {
+              // Gestionnaire pour le double-clic (édition)
+              eventEl.addEventListener("dblclick", function (e) {
+                const eventId = this.getAttribute("data-event-id");
+                const calendarId = this.getAttribute("data-calendar-id");
+
+                if (!eventId || !calendarId) {
+                  console.error("Données d'événement incomplètes:", {
+                    eventId,
+                    calendarId,
+                  });
+                  return;
+                }
+
+                // Toujours récupérer depuis le backend pour avoir les données les plus à jour
+                CalendarBackend.getEvent(
+                  eventId,
+                  calendarId,
+                  function (error, eventData) {
+                    if (error || !eventData) {
+                      console.warn("Fallback à la liste locale pour l'édition");
+                      // Fallback à la recherche locale
+                      const localEvent = customDayViewEvents.find(
+                        (ev) => ev.id == eventId
+                      );
+                      if (localEvent) {
+                        openEditModal({
+                          id: localEvent.id,
+                          title: localEvent.title,
+                          start: new Date(localEvent.start),
+                          end: new Date(localEvent.end),
+                          calendarId: localEvent.calendarId,
+                          isAllDay: localEvent.isAllDay,
+                          raw: {
+                            categoryId: localEvent.categoryId,
+                            location: localEvent.location,
+                            body: localEvent.body,
+                            calendarColor: localEvent.calendarColor,
+                            categoryColor: localEvent.categoryColor,
+                            categoryTextColor: localEvent.categoryTextColor,
+                          },
+                        });
+                      } else {
+                        console.error(
+                          "Événement non trouvé pour l'édition:",
+                          eventId
+                        );
+                      }
+                      return;
+                    }
+
+                    // Utiliser les données complètes du backend
+                    openEditModal(eventData);
+                  }
+                );
+              });
+
+              // Gestionnaire pour le clic droit (duplication)
+              eventEl.addEventListener("contextmenu", function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const eventId = this.getAttribute("data-event-id");
+                const calendarId = this.getAttribute("data-calendar-id");
+
+                if (!eventId || !calendarId) {
+                  console.error(
+                    "Données d'événement incomplètes pour la duplication:",
+                    { eventId, calendarId }
+                  );
+                  return false;
+                }
+
+                // Toujours récupérer depuis le backend pour avoir les données les plus à jour
+                CalendarBackend.getEvent(
+                  eventId,
+                  calendarId,
+                  function (error, eventData) {
+                    if (error || !eventData) {
+                      console.warn(
+                        "Fallback à la liste locale pour la duplication"
+                      );
+                      // Fallback à la recherche locale
+                      const localEvent = customDayViewEvents.find(
+                        (ev) => ev.id == eventId
+                      );
+                      if (localEvent) {
+                        openCloneModal({
+                          title: localEvent.title,
+                          start: new Date(localEvent.start),
+                          end: new Date(localEvent.end),
+                          calendarId: localEvent.calendarId,
+                          categoryId: localEvent.categoryId,
+                          isAllDay: localEvent.isAllDay,
+                          raw: {
+                            calendarColor: localEvent.calendarColor,
+                            categoryColor: localEvent.categoryColor,
+                            categoryTextColor: localEvent.categoryTextColor,
+                            location: localEvent.location,
+                            body: localEvent.body,
+                          },
+                        });
+                      } else {
+                        console.error(
+                          "Événement non trouvé pour la duplication:",
+                          eventId
+                        );
+                      }
+                      return;
+                    }
+
+                    // Utiliser les données complètes du backend
+                    openCloneModal(eventData);
+                  }
+                );
+
+                return false;
+              });
+            });
+
+          // Ajouter du CSS spécifique pour notre vue jour
+          const customStyle = document.createElement("style");
+          customStyle.textContent = `
+                .custom-day-view {
+                    padding: 20px;
+                    height: 100%;
+                    min-height: 500px;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                }
+                .custom-day-view .day-date {
+                    text-align: center;
+                    margin-bottom: 20px;
+                }
+                .custom-day-view .day-events-container {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 20px;
+                }
+                .custom-day-view h3 {
+                    margin-bottom: 10px;
+                    font-size: 16px;
+                    font-weight: bold;
+                    color: #333;
+                }
+                .custom-day-view .events-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+                .custom-day-view .event {
+                    padding: 10px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                }
+                .custom-day-view .event:hover {
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                }
+                .custom-day-view .event-title {
+                    font-weight: bold;
+                    margin-bottom: 5px;
+                }
+                .custom-day-view .event-time {
+                    font-size: 0.85em;
+                    opacity: 0.9;
+                }
+                .custom-day-view .event-location {
+                    font-size: 0.85em;
+                    opacity: 0.8;
+                    margin-top: 5px;
+                }
+                .custom-day-view .no-events {
+                    color: #999;
+                    font-style: italic;
+                }
+            `;
+          document.head.appendChild(customStyle);
         }
-
-        console.log(`Vue jour: ${events.length} événements chargés`);
-
-        // Créer les événements et maintenir leur affichage
-        calendar.clear();
-
-        // Préparer les événements pour le calendrier
-        const schedules = events.map((event) => ({
-          id: event.id,
-          calendarId: event.calendarId,
-          title: event.title,
-          start: new Date(event.start),
-          end: new Date(event.end),
-          isAllDay: event.isAllDay,
-          category: event.isAllDay ? "allday" : "time",
-          raw: {
-            calendarColor: event.calendarColor,
-            categoryColor: event.categoryColor,
-            categoryTextColor: event.categoryTextColor,
-            categoryId: event.categoryId,
-            location: event.location,
-            body: event.body,
-          },
-        }));
-
-        // Ajouter les événements
-        calendar.createSchedules(schedules);
-
-        // Forcer la stabilité de la vue jour avec plusieurs rendus
-        const renderDayEvents = () => {
-          if (calendar.getViewName() !== "day") return;
-          calendar.createSchedules(schedules);
-        };
-
-        // Planifier plusieurs rendus pour assurer la visibilité des événements
-        setTimeout(renderDayEvents, 200);
-        setTimeout(renderDayEvents, 500);
-        setTimeout(renderDayEvents, 1000);
-      });
+      );
     });
 
     document.getElementById("week-view").addEventListener("click", () => {
-      // Réinitialiser le flag de vue jour
-      sessionStorage.removeItem('calendarView');
+      // Vérifier si nous étions en vue jour personnalisée
+      if (customDayViewActive) {
+        // Restaurer le contenu original du calendrier
+        const calendarContainer = document.querySelector("#calendar");
+        const originalContent = calendarContainer.getAttribute(
+          "data-original-content"
+        );
+        if (originalContent) {
+          calendarContainer.innerHTML = originalContent;
+        }
+
+        // Réinitialiser le calendrier
+        calendar = initializeCalendar(calendarData);
+        customDayViewActive = false;
+
+        // Réattacher les gestionnaires d'événements
+        attachEventHandlers(calendar, calendarIds);
+      }
+
+      // Réinitialiser les flags de vue jour
+      sessionStorage.removeItem("calendarView");
+      sessionStorage.removeItem("disableAutoReload");
+
+      // Changer la vue et mettre à jour l'UI
       calendar.changeView("week");
       updateViewButtons("week");
       updateCalendarHeader(calendar);
@@ -609,8 +848,30 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     document.getElementById("month-view").addEventListener("click", () => {
-      // Réinitialiser le flag de vue jour
-      sessionStorage.removeItem('calendarView');
+      // Vérifier si nous étions en vue jour personnalisée
+      if (customDayViewActive) {
+        // Restaurer le contenu original du calendrier
+        const calendarContainer = document.querySelector("#calendar");
+        const originalContent = calendarContainer.getAttribute(
+          "data-original-content"
+        );
+        if (originalContent) {
+          calendarContainer.innerHTML = originalContent;
+        }
+
+        // Réinitialiser le calendrier
+        calendar = initializeCalendar(calendarData);
+        customDayViewActive = false;
+
+        // Réattacher les gestionnaires d'événements
+        attachEventHandlers(calendar, calendarIds);
+      }
+
+      // Réinitialiser les flags de vue jour
+      sessionStorage.removeItem("calendarView");
+      sessionStorage.removeItem("disableAutoReload");
+
+      // Changer la vue et mettre à jour l'UI
       calendar.changeView("month");
       updateViewButtons("month");
       updateCalendarHeader(calendar);
@@ -619,186 +880,66 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Boutons de navigation
     document.getElementById("prev-btn").addEventListener("click", () => {
+      // Si nous sommes en vue jour personnalisée
+      if (customDayViewActive) {
+        // Naviguer au jour précédent
+        const currentDate = calendar.getDate();
+        currentDate.setDate(currentDate.getDate() - 1);
+        calendar.setDate(currentDate);
+
+        // Redéclencher le clic sur day-view pour rafraîchir la vue personnalisée
+        document.getElementById("day-view").click();
+        return;
+      }
+
+      // Navigation standard pour les autres cas
       calendar.prev();
       updateCalendarHeader(calendar);
 
-      // Traitement spécial pour la vue jour
-      if (
-        calendar.getViewName() === "day" &&
-        sessionStorage.getItem("calendarView") === "day"
-      ) {
-        // Récupérer la période et charger directement les événements
-        const rangeStart = calendar.getDateRangeStart();
-        const rangeEnd = calendar.getDateRangeEnd();
-        const startDate =
-          rangeStart instanceof Date
-            ? rangeStart
-            : rangeStart._date
-            ? new Date(rangeStart._date)
-            : new Date(rangeStart);
-        const endDate =
-          rangeEnd instanceof Date
-            ? rangeEnd
-            : rangeEnd._date
-            ? new Date(rangeEnd._date)
-            : new Date(rangeEnd);
-
-        CalendarBackend.loadEvents(
-          startDate,
-          endDate,
-          function (error, events) {
-            if (error) return;
-
-            // Créer les événements
-            calendar.clear();
-            const schedules = events.map((event) => ({
-              id: event.id,
-              calendarId: event.calendarId,
-              title: event.title,
-              start: new Date(event.start),
-              end: new Date(event.end),
-              isAllDay: event.isAllDay,
-              category: event.isAllDay ? "allday" : "time",
-              raw: event.raw || {
-                calendarColor: event.calendarColor,
-                categoryColor: event.categoryColor,
-                categoryTextColor: event.categoryTextColor,
-                categoryId: event.categoryId,
-              },
-            }));
-
-            calendar.createSchedules(schedules);
-
-            // Recharger plusieurs fois pour garantir l'affichage
-            setTimeout(() => calendar.createSchedules(schedules), 300);
-            setTimeout(() => calendar.createSchedules(schedules), 600);
-          }
-        );
-      } else {
+      if (!sessionStorage.getItem("disableAutoReload")) {
         // Pour les autres vues, utiliser reloadEvents normal
         reloadEvents(calendar);
       }
     });
-
     document.getElementById("next-btn").addEventListener("click", () => {
+      // Si nous sommes en vue jour personnalisée
+      if (customDayViewActive) {
+        // Naviguer au jour suivant
+        const currentDate = calendar.getDate();
+        currentDate.setDate(currentDate.getDate() + 1);
+        calendar.setDate(currentDate);
+
+        // Redéclencher le clic sur day-view pour rafraîchir la vue personnalisée
+        document.getElementById("day-view").click();
+        return;
+      }
+
+      // Navigation standard pour les autres cas
       calendar.next();
       updateCalendarHeader(calendar);
 
-      // Traitement spécial pour la vue jour
-      if (
-        calendar.getViewName() === "day" &&
-        sessionStorage.getItem("calendarView") === "day"
-      ) {
-        // Récupérer la période et charger directement les événements
-        const rangeStart = calendar.getDateRangeStart();
-        const rangeEnd = calendar.getDateRangeEnd();
-        const startDate =
-          rangeStart instanceof Date
-            ? rangeStart
-            : rangeStart._date
-            ? new Date(rangeStart._date)
-            : new Date(rangeStart);
-        const endDate =
-          rangeEnd instanceof Date
-            ? rangeEnd
-            : rangeEnd._date
-            ? new Date(rangeEnd._date)
-            : new Date(rangeEnd);
-
-        CalendarBackend.loadEvents(
-          startDate,
-          endDate,
-          function (error, events) {
-            if (error) return;
-
-            // Créer les événements
-            calendar.clear();
-            const schedules = events.map((event) => ({
-              id: event.id,
-              calendarId: event.calendarId,
-              title: event.title,
-              start: new Date(event.start),
-              end: new Date(event.end),
-              isAllDay: event.isAllDay,
-              category: event.isAllDay ? "allday" : "time",
-              raw: event.raw || {
-                calendarColor: event.calendarColor,
-                categoryColor: event.categoryColor,
-                categoryTextColor: event.categoryTextColor,
-                categoryId: event.categoryId,
-              },
-            }));
-
-            calendar.createSchedules(schedules);
-
-            // Recharger plusieurs fois pour garantir l'affichage
-            setTimeout(() => calendar.createSchedules(schedules), 300);
-            setTimeout(() => calendar.createSchedules(schedules), 600);
-          }
-        );
-      } else {
+      if (!sessionStorage.getItem("disableAutoReload")) {
         // Pour les autres vues, utiliser reloadEvents normal
         reloadEvents(calendar);
       }
     });
 
     document.getElementById("today-btn").addEventListener("click", () => {
+      // Si nous sommes en vue jour personnalisée
+      if (customDayViewActive) {
+        // Revenir à aujourd'hui
+        calendar.setDate(new Date());
+
+        // Redéclencher le clic sur day-view pour rafraîchir la vue personnalisée
+        document.getElementById("day-view").click();
+        return;
+      }
+
+      // Navigation standard pour les autres cas
       calendar.today();
       updateCalendarHeader(calendar);
 
-      // Traitement spécial pour la vue jour
-      if (
-        calendar.getViewName() === "day" &&
-        sessionStorage.getItem("calendarView") === "day"
-      ) {
-        // Récupérer la période et charger directement les événements
-        const rangeStart = calendar.getDateRangeStart();
-        const rangeEnd = calendar.getDateRangeEnd();
-        const startDate =
-          rangeStart instanceof Date
-            ? rangeStart
-            : rangeStart._date
-            ? new Date(rangeStart._date)
-            : new Date(rangeStart);
-        const endDate =
-          rangeEnd instanceof Date
-            ? rangeEnd
-            : rangeEnd._date
-            ? new Date(rangeEnd._date)
-            : new Date(rangeEnd);
-
-        CalendarBackend.loadEvents(
-          startDate,
-          endDate,
-          function (error, events) {
-            if (error) return;
-
-            // Créer les événements
-            calendar.clear();
-            const schedules = events.map((event) => ({
-              id: event.id,
-              calendarId: event.calendarId,
-              title: event.title,
-              start: new Date(event.start),
-              end: new Date(event.end),
-              isAllDay: event.isAllDay,
-              category: event.isAllDay ? "allday" : "time",
-              raw: event.raw || {
-                calendarColor: event.calendarColor,
-                categoryColor: event.categoryColor,
-                categoryTextColor: event.categoryTextColor,
-                categoryId: event.categoryId,
-              },
-            }));
-
-            calendar.createSchedules(schedules);
-
-            // Recharger plusieurs fois pour garantir l'affichage
-            setTimeout(() => calendar.createSchedules(schedules), 300);
-            setTimeout(() => calendar.createSchedules(schedules), 600);
-          }
-        );
-      } else {
+      if (!sessionStorage.getItem("disableAutoReload")) {
         // Pour les autres vues, utiliser reloadEvents normal
         reloadEvents(calendar);
       }
@@ -903,20 +1044,13 @@ document.addEventListener("DOMContentLoaded", function () {
           calendarId,
           function (error, response) {
             if (!error) {
-              // Supprimer localement si le backend a réussi
-              // Recharger les événements depuis le backend pour la période affichée
-              const currentDate = calendar.getDate();
-              const start = new Date(
-                currentDate.getFullYear(),
-                currentDate.getMonth() - 1,
-                1
-              );
-              const end = new Date(
-                currentDate.getFullYear(),
-                currentDate.getMonth() + 2,
-                0
-              );
-              reloadEvents(calendar);
+              // Si on est en vue jour personnalisée, relancer le clic sur day-view
+              if (customDayViewActive) {
+                document.getElementById("day-view").click();
+              } else {
+                // Pour les autres vues, recharger les événements normalement
+                reloadEvents(calendar);
+              }
             }
 
             // Fermer les modals quelle que soit la réponse
@@ -1146,19 +1280,13 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       // Après succès, recharger les événements depuis le backend pour la période affichée
-      const currentDate = calendar.getDate();
-      const start = new Date(
-        currentDate.getFullYear(),
-        currentDate.getMonth() - 1,
-        1
-      );
-      const end = new Date(
-        currentDate.getFullYear(),
-        currentDate.getMonth() + 2,
-        0
-      );
-
-      reloadEvents(calendar);
+      if (customDayViewActive) {
+        // Si on est en vue jour personnalisée, relancer le clic sur day-view
+        document.getElementById("day-view").click();
+      } else {
+        // Pour les autres vues, recharger les événements normalement
+        reloadEvents(calendar);
+      }
       // Réinitialiser le flag de duplication
       if (document.getElementById("isDuplicatedEvent")) {
         document.getElementById("isDuplicatedEvent").value = "false";
@@ -1383,6 +1511,7 @@ document.addEventListener("DOMContentLoaded", function () {
     console.error("Format de date invalide:", dateValue);
     return "";
   }
+
   /**
    * Fonctions pour les modaux
    */
