@@ -97,104 +97,63 @@ document.addEventListener("DOMContentLoaded", function () {
     /**
      * Recharge les événements pour la période affichée avec un traitement spécial pour la vue jour
      */
-    function reloadEvents(calendar) {
-      const currentView = calendar.getViewName();
-      const rangeStart = calendar.getDateRangeStart();
-      const rangeEnd = calendar.getDateRangeEnd();
-      
-      // Convertir les dates au format standard
-      const startDate = rangeStart instanceof Date ? rangeStart : 
-                       (rangeStart._date ? new Date(rangeStart._date) : new Date(rangeStart));
-      const endDate = rangeEnd instanceof Date ? rangeEnd : 
-                     (rangeEnd._date ? new Date(rangeEnd._date) : new Date(rangeEnd));
-      
-      // Traitement spécial pour la vue jour
-      if (currentView === "day") {
-        console.log("Vue jour détectée - traitement spécial");
-        
-        // Utiliser loadDayViewEvents au lieu de loadEvents
-        const dayDate = calendar.getDate();
-        
-        // Utilisation de l'API spécialisée pour les événements jour
-        CalendarBackend.loadDayViewEvents(dayDate, function(error, events) {
-          if (error) {
-            console.error("Erreur lors du chargement des événements jour:", error);
-            return;
-          }
-          
-          console.log(`Vue jour: ${events.length} événements chargés avec API dédiée`, events);
-          
-          // Vider d'abord complètement le calendrier
-          calendar.clear();
-          
-          // Transformer les événements avec une distinction claire
-          const schedules = events.map(event => {
-            // Analyser explicitement isAllDay comme un booléen
-            const isAllDay = event.isAllDay === true || event.isAllDay === 1 || event.isAllDay === "1";
-            
-            return {
-              id: event.id,
-              calendarId: event.calendarId,
-              title: event.title,
-              start: new Date(event.start),
-              end: new Date(event.end),
-              isAllDay: isAllDay,
-              category: isAllDay ? "allday" : "time", // Catégorie explicite
-              raw: {
-                calendarColor: event.calendarColor,
-                categoryColor: event.categoryColor,
-                categoryTextColor: event.categoryTextColor,
-                categoryId: event.categoryId,
-                location: event.location,
-                body: event.body
-              }
-            };
-          });
-          
-          // Ajouter les événements et empêcher un second rechargement
-          try {
-            calendar.createSchedules(schedules);
-            calendar.render(true); // Force le rendu
-          } catch(e) {
-            console.error(`Erreur lors de la création des événements:`, e);
-          }
-        });
-        
-        return;
-      }
-      
-      // Traitement standard pour les autres vues (semaine, mois)
-      CalendarBackend.loadEvents(startDate, endDate, function(error, events) {
-        if (error) {
-          console.error("Erreur lors du chargement des événements:", error);
-          return;
-        }
-        
-        // Ajouter les événements au calendrier
-        calendar.clear();
-        if (!events || !events.length) return;
-        
-        const schedules = events.map(event => ({
-          id: event.id,
-          calendarId: event.calendarId,
-          title: event.title,
-          start: new Date(event.start),
-          end: new Date(event.end),
-          isAllDay: event.isAllDay,
-          category: event.isAllDay ? "allday" : "time",
-          raw: {
-            calendarColor: event.calendarColor,
-            categoryColor: event.categoryColor,
-            categoryTextColor: event.categoryTextColor,
-            categoryId: event.categoryId,
-            location: event.location,
-            body: event.body
-          }
-        }));
-        
-        calendar.createSchedules(schedules);
-      },true);
+    // Remplacer votre fonction reloadEvents actuelle par celle-ci :
+function reloadEvents(calendar) {
+  const currentView = calendar.getViewName();
+  const rangeStart = calendar.getDateRangeStart();
+  const rangeEnd = calendar.getDateRangeEnd();
+  
+  // Convertir les dates au format standard
+  const startDate = rangeStart instanceof Date ? rangeStart : 
+                   (rangeStart._date ? new Date(rangeStart._date) : new Date(rangeStart));
+  const endDate = rangeEnd instanceof Date ? rangeEnd : 
+                 (rangeEnd._date ? new Date(rangeEnd._date) : new Date(rangeEnd));
+  
+  console.log(`Rechargement des événements pour la vue ${currentView}`);
+  
+  // Utiliser une approche unifiée pour toutes les vues
+  // Le patch s'occupera de corriger la vue jour
+  CalendarBackend.loadEvents(startDate, endDate, function(error, events) {
+    if (error) {
+      console.error("Erreur lors du chargement des événements:", error);
+      return;
     }
+    
+    console.log(`${events.length} événements chargés pour la vue ${currentView}`);
+    
+    // Vider le calendrier
+    calendar.clear();
+    
+    if (!events || !events.length) return;
+    
+    // Analyser et transformer les événements de manière cohérente
+    const schedules = events.map(event => {
+      // Analyser explicitement isAllDay comme un booléen
+      const isAllDay = event.isAllDay === true || event.isAllDay === 1 || event.isAllDay === "1";
+      
+      return {
+        id: event.id,
+        calendarId: event.calendarId,
+        title: event.title,
+        start: new Date(event.start),
+        end: new Date(event.end),
+        isAllDay: isAllDay,
+        category: isAllDay ? "allday" : "time",
+        raw: {
+          calendarColor: event.calendarColor,
+          categoryColor: event.categoryColor,
+          categoryTextColor: event.categoryTextColor,
+          categoryId: event.categoryId,
+          location: event.location,
+          body: event.body
+        }
+      };
+    });
+    
+    // Créer tous les événements d'un coup - le patch s'appliquera ici
+    calendar.createSchedules(schedules);
+  }, currentView === "day"); // true pour préserver les heures dans la vue jour
+}
   
     /**
      * Charge les événements initiaux depuis le backend

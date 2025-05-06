@@ -38,6 +38,8 @@ $pageScripts = <<<HTML
     window.calendarIds = {$calendarIdsJSON};
 </script>
 
+<script src="/tui_calendar/assets/js/calendar-dayview-patch.js"></script>
+
 <!-- Inclure les scripts factorisés -->
 <script src="/tui_calendar/assets/js/backend-calendar.js"></script>
 <script src="/tui_calendar/assets/js/frontend-calendar.js"></script>
