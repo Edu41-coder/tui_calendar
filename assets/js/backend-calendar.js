@@ -256,12 +256,28 @@ const CalendarBackend = (function() {
      * @param {Boolean} preserveHours - Conserver les heures dans les dates
      */
     function loadEvents(start, end, callback, preserveHours = false) {
-        // Formater les dates en conservant les heures pour la vue jour
         if (start instanceof Date) {
-            start = preserveHours ? start.toISOString() : start.toISOString().split('T')[0];
+            // Format YYYY-MM-DD (et heures si préservées)
+            if (preserveHours) {
+                start = formatLocalISOString(start);
+            } else {
+                const year = start.getFullYear();
+                const month = String(start.getMonth() + 1).padStart(2, '0');
+                const day = String(start.getDate()).padStart(2, '0');
+                start = `${year}-${month}-${day}`;
+            }
         }
+    
         if (end instanceof Date) {
-            end = preserveHours ? end.toISOString() : end.toISOString().split('T')[0];
+            // Format YYYY-MM-DD (et heures si préservées)
+            if (preserveHours) {
+                end = formatLocalISOString(end);
+            } else {
+                const year = end.getFullYear();
+                const month = String(end.getMonth() + 1).padStart(2, '0');
+                const day = String(end.getDate()).padStart(2, '0');
+                end = `${year}-${month}-${day}`;
+            }
         }
         
         console.log('Chargement des événements du', start, 'au', end);

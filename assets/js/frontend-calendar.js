@@ -97,22 +97,27 @@ document.addEventListener("DOMContentLoaded", function () {
     /**
      * Recharge les événements pour la période affichée avec un traitement spécial pour la vue jour
      */
-    // Remplacer votre fonction reloadEvents actuelle par celle-ci :
 function reloadEvents(calendar) {
   const currentView = calendar.getViewName();
+  
+  // Obtenir la plage de dates affichée réellement
   const rangeStart = calendar.getDateRangeStart();
   const rangeEnd = calendar.getDateRangeEnd();
   
-  // Convertir les dates au format standard
-  const startDate = rangeStart instanceof Date ? rangeStart : 
-                   (rangeStart._date ? new Date(rangeStart._date) : new Date(rangeStart));
-  const endDate = rangeEnd instanceof Date ? rangeEnd : 
-                 (rangeEnd._date ? new Date(rangeEnd._date) : new Date(rangeEnd));
+  // Convertir et corriger le décalage
+  let startDate = rangeStart instanceof Date ? rangeStart : 
+                 (rangeStart._date ? new Date(rangeStart._date) : new Date(rangeStart));
   
-  console.log(`Rechargement des événements pour la vue ${currentView}`);
+  let endDate = rangeEnd instanceof Date ? rangeEnd : 
+               (rangeEnd._date ? new Date(rangeEnd._date) : new Date(rangeEnd));
+               
+  // IMPORTANT: Ajouter exactement 1 jour à la date de fin pour inclure tous les événements
+  endDate = new Date(endDate);
+  endDate.setDate(endDate.getDate() + 1);
+  
+  console.log(`Rechargement des événements pour la vue ${currentView} du ${startDate.toLocaleDateString()} au ${endDate.toLocaleDateString()}`);
   
   // Utiliser une approche unifiée pour toutes les vues
-  // Le patch s'occupera de corriger la vue jour
   CalendarBackend.loadEvents(startDate, endDate, function(error, events) {
     if (error) {
       console.error("Erreur lors du chargement des événements:", error);
@@ -126,33 +131,73 @@ function reloadEvents(calendar) {
     
     if (!events || !events.length) return;
     
-    // Analyser et transformer les événements de manière cohérente
-    const schedules = events.map(event => {
-      // Analyser explicitement isAllDay comme un booléen
-      const isAllDay = event.isAllDay === true || event.isAllDay === 1 || event.isAllDay === "1";
-      
-      return {
-        id: event.id,
-        calendarId: event.calendarId,
-        title: event.title,
-        start: new Date(event.start),
-        end: new Date(event.end),
-        isAllDay: isAllDay,
-        category: isAllDay ? "allday" : "time",
-        raw: {
-          calendarColor: event.calendarColor,
-          categoryColor: event.categoryColor,
-          categoryTextColor: event.categoryTextColor,
-          categoryId: event.categoryId,
-          location: event.location,
-          body: event.body
-        }
-      };
-    });
+    // Créer tous les événements et forcer un rendu complet
+    calendar.createSchedules(events.map(transformEvent));
     
-    // Créer tous les événements d'un coup - le patch s'appliquera ici
-    calendar.createSchedules(schedules);
+    // CORRECTION: Forcer un rendu spécifique pour les deux dernières colonnes
+    if (currentView === 'week') {
+      setTimeout(function() {
+        forceRenderWeekendColumns(calendar);
+      }, 100);
+    }
   }, currentView === "day"); // true pour préserver les heures dans la vue jour
+}
+
+// Fonction auxiliaire pour transformer un événement au format TUI Calendar
+function transformEvent(event) {
+  const isAllDay = event.isAllDay === true || event.isAllDay === 1 || event.isAllDay === "1";
+  
+  return {
+    id: event.id,
+    calendarId: event.calendarId,
+    title: event.title,
+    start: new Date(event.start),
+    end: new Date(event.end),
+    isAllDay: isAllDay,
+    category: isAllDay ? "allday" : "time",
+    raw: {
+      calendarColor: event.calendarColor,
+      categoryColor: event.categoryColor,
+      categoryTextColor: event.categoryTextColor,
+      categoryId: event.categoryId,
+      location: event.location,
+      body: event.body
+    }
+  };
+}
+
+// Fonction spéciale pour forcer le rendu des colonnes du weekend
+function forceRenderWeekendColumns(calendar) {
+  try {
+    // Accès direct aux colonnes weekend via le DOM (solution radicale)
+    const weekendDays = document.querySelectorAll('.tui-full-calendar-timegrid-container .tui-full-calendar-timegrid-columns .tui-full-calendar-timegrid-column:nth-last-child(-n+2)');
+    
+    if (weekendDays && weekendDays.length) {
+      console.log(`Rendu forcé pour ${weekendDays.length} colonnes weekend`);
+      
+      // Forcer un refresh du DOM
+      weekendDays.forEach(column => {
+        // Bidouillage DOM: masquer puis réafficher pour forcer un re-rendu
+        column.style.opacity = "0.99";
+        setTimeout(() => {
+          column.style.opacity = "";
+        }, 10);
+      });
+      
+      // HACK: forcer aussi le contrôleur interne à recalculer les événements
+      if (calendar._controller) {
+        setTimeout(() => {
+          // Accéder à la vue timeGrid et forcer un rendu complet
+          const timeGridView = calendar._controller.view.children.single('timeGrid');
+          if (timeGridView && timeGridView.render) {
+            timeGridView.render();
+          }
+        }, 50);
+      }
+    }
+  } catch (e) {
+    console.error("Erreur lors du rendu forcé des colonnes weekend:", e);
+  }
 }
   
     /**
