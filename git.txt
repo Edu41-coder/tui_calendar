@@ -23,7 +23,7 @@ git commit -m "Modif's"
 git push upstream develop
 
 # Créer une nouvelle branche et basculer dessus
-git checkout -b dev_7
+git checkout -b dev_8
 
 # Vérifier que vous êtes bien sur la nouvelle branche
 git branch
@@ -32,11 +32,11 @@ git branch
 git add .
 
 # Valider les changements avec un message descriptif
-git commit -m "Ajout patch day_view"
+git commit -m "retrait patch "
 
 # Pousser la nouvelle branche vers le dépôt distant
 # Le -u configure le tracking pour les futurs push/pull
-git push -u upstream dev_7
+git push -u upstream dev_8
 
 
 git config --global user.email "hehermosilla@gmail.com"
