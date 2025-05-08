@@ -23,7 +23,7 @@ git commit -m "Modif's"
 git push upstream develop
 
 # Créer une nouvelle branche et basculer dessus
-git checkout -b dev_8
+git checkout -b dev_9
 
 # Vérifier que vous êtes bien sur la nouvelle branche
 git branch
@@ -32,11 +32,10 @@ git branch
 git add .
 
 # Valider les changements avec un message descriptif
-git commit -m "before classes"
-
+git commit -m "classes"
 # Pousser la nouvelle branche vers le dépôt distant
 # Le -u configure le tracking pour les futurs push/pull
-git push -u upstream dev_8
+git push -u upstream dev_9
 
 
 git config --global user.email "hehermosilla@gmail.com"
