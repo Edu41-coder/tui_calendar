@@ -121,27 +121,53 @@ class User {
             // Mise à jour avec mot de passe
             $hashed_password = password_hash($data['password'], PASSWORD_BCRYPT);
             
-            $query = "UPDATE users SET username = ?, password = ?, email = ?, full_name = ? WHERE user_id = ?";
-            $stmt = $this->conn->prepare($query);
-            $stmt->bind_param(
-                "ssssi", 
-                $data['username'], 
-                $hashed_password, 
-                $data['email'], 
-                $data['full_name'],
-                $id
-            );
+            // Vérifier si username est fourni
+            if (isset($data['username'])) {
+                $query = "UPDATE users SET username = ?, password = ?, email = ?, full_name = ? WHERE user_id = ?";
+                $stmt = $this->conn->prepare($query);
+                $stmt->bind_param(
+                    "ssssi", 
+                    $data['username'], 
+                    $hashed_password, 
+                    $data['email'], 
+                    $data['full_name'],
+                    $id
+                );
+            } else {
+                // Sans username
+                $query = "UPDATE users SET password = ?, email = ?, full_name = ? WHERE user_id = ?";
+                $stmt = $this->conn->prepare($query);
+                $stmt->bind_param(
+                    "sssi", 
+                    $hashed_password, 
+                    $data['email'], 
+                    $data['full_name'],
+                    $id
+                );
+            }
         } else {
             // Mise à jour sans mot de passe
-            $query = "UPDATE users SET username = ?, email = ?, full_name = ? WHERE user_id = ?";
-            $stmt = $this->conn->prepare($query);
-            $stmt->bind_param(
-                "sssi", 
-                $data['username'], 
-                $data['email'], 
-                $data['full_name'],
-                $id
-            );
+            if (isset($data['username'])) {
+                $query = "UPDATE users SET username = ?, email = ?, full_name = ? WHERE user_id = ?";
+                $stmt = $this->conn->prepare($query);
+                $stmt->bind_param(
+                    "sssi", 
+                    $data['username'], 
+                    $data['email'], 
+                    $data['full_name'],
+                    $id
+                );
+            } else {
+                // Sans username ni mot de passe
+                $query = "UPDATE users SET email = ?, full_name = ? WHERE user_id = ?";
+                $stmt = $this->conn->prepare($query);
+                $stmt->bind_param(
+                    "ssi", 
+                    $data['email'], 
+                    $data['full_name'],
+                    $id
+                );
+            }
         }
         
         return $stmt->execute();

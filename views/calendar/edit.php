@@ -45,14 +45,8 @@ include_once __DIR__ . '/../layouts/main.php';
                                            value="<?php echo htmlspecialchars($calendar['color']); ?>">
                                 </div>
                                 <small class="form-text text-muted">Cette couleur sera utilisée pour identifier votre calendrier et ses événements.</small>
-                            </div>
+                            </div>                           
                             
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" id="is_visible" name="is_visible" value="1"
-                                       <?php echo (isset($calendar['is_visible']) && $calendar['is_visible']) ? 'checked' : ''; ?>>
-                                <label class="form-check-label" for="is_visible">Visible par défaut</label>
-                                <div class="form-text">Si coché, les événements de ce calendrier seront visibles dans la vue principale.</div>
-                            </div>
                             
                             <?php if (isset($calendar['created_at'])): ?>
                             <div class="mb-3">

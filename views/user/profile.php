@@ -72,7 +72,7 @@ include_once __DIR__ . '/../layouts/main.php'; ?>
 
                         <hr>
                         <h5>Changer le mot de passe</h5>
-                        <p class="text-muted">Laissez vide si vous ne souhaitez pas modifier votre mot de passe</p>
+                        <p class="text-muted">Laissez vides les trois champs en dessous si vous ne souhaitez pas modifier votre mot de passe</p>
 
                         <div class="mb-3">
                             <label for="current_password" class="form-label">Mot de passe actuel</label>

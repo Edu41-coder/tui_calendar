@@ -32,7 +32,7 @@ git branch
 git add .
 
 # Valider les changements avec un message descriptif
-git commit -m "retrait patch "
+git commit -m "before classes"
 
 # Pousser la nouvelle branche vers le dépôt distant
 # Le -u configure le tracking pour les futurs push/pull

@@ -238,6 +238,29 @@ switch($action) {
             sendJsonResponse(['success' => false, 'message' => 'Erreur lors de la récupération des événements: ' . $e->getMessage()], 500);
         }
         break;
+
+    case 'toggle-calendar-visibility':
+        // Vérifier les paramètres requis
+        if (!isset($_POST['calendar_id']) || !isset($_POST['visible'])) {
+            sendJsonResponse(['success' => false, 'message' => 'Paramètres manquants']);
+            exit;
+        }
+        
+        $calendarId = (int)$_POST['calendar_id'];
+        $visible = $_POST['visible'] ? 1 : 0;
+        
+        // Instancier le modèle Calendar
+        $calendarModel = new Calendar();
+        
+        // Mettre à jour la visibilité
+        $success = $calendarModel->setVisibility($calendarId, $visible);
+        
+        if ($success) {
+            sendJsonResponse(['success' => true, 'message' => 'Visibilité mise à jour']);
+        } else {
+            sendJsonResponse(['success' => false, 'message' => 'Erreur lors de la mise à jour de la visibilité']);
+        }
+        break;
         
     default:
         header('HTTP/1.1 404 Not Found');
