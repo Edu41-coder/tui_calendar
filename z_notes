@@ -1,0 +1,29 @@
+Architecture complète
+Couche interface utilisateur (UI) - frontend-calendar.js :
+initializeCalendarCheckboxes() → détecte le clic → appelle backend.toggleCalendarVisibility()
+
+Couche communication AJAX - backend-calendar.js :
+toggleCalendarVisibility() → envoie requête AJAX vers PHP → gère réponse
+
+Couche contrôleur PHP - ajax-handler.php :
+case 'toggle-calendar-visibility' → valide données → appelle modèle
+
+Couche modèle PHP - Calendar.php :
+setVisibility() → modifie la base de données 
+
+Pourquoi le code PHP reste nécessaire
+Le code dans ajax-handler.php est absolument nécessaire car c'est la seule partie qui:
+
+✅ A accès direct à la base de données
+✅ Effectue la validation côté serveur (sécurité)
+✅ Peut exécuter la requête SQL de mise à jour
+Le JavaScript ne peut jamais modifier directement votre base de données - il doit toujours passer par une API serveur (PHP dans votre cas).
+
+Flux de données complet
+Utilisateur coche une case → JavaScript détecte
+Frontend.js appelle Backend.js
+Backend.js envoie une requête AJAX à PHP
+PHP valide et modifie la base de données
+PHP renvoie succès/échec
+JavaScript met à jour l'interface utilisateur
+Cette architecture en couches est standard et correcte pour ce type d'application.

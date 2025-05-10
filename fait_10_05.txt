@@ -1,0 +1,197 @@
+Ce qui manque: une méthode côté client
+Ce qui manque effectivement, c'est une méthode dans backend-calendar.js qui serait dédiée à cette fonction:
+
+/**
+ * Met à jour la visibilité d'un calendrier
+ * @param {Number} calendarId - ID du calendrier
+ * @param {Boolean} visible - Nouvel état de visibilité
+ * @param {Function} callback - Fonction de rappel
+ */
+toggleCalendarVisibility(calendarId, visible, callback) {
+  $.ajax({
+    url: this.baseUrl + 'ajax-handler.php?action=toggle-calendar-visibility',
+    type: 'POST',
+    data: {
+      calendar_id: calendarId,
+      visible: visible ? 1 : 0
+    },
+    dataType: 'json',
+    success: (response) => {
+      if (response.success) {
+        this.alertSystem.success('Visibilité du calendrier mise à jour');
+        callback && callback(null, response);
+      } else {
+        this.alertSystem.error(response.message || 'Erreur de mise à jour');
+        callback && callback(new Error(response.message), null);
+      }
+    },
+    error: (xhr, status, error) => {
+      this.alertSystem.error('Erreur de communication');
+      callback && callback(new Error(error), null);
+    }
+  });
+}
+
+# Analyse de la méthode `loadDayViewEvents`
+
+Vous avez raison, cette méthode n'est plus utilisée dans votre code actuel. Voici l'analyse complète :
+
+## Méthode devenue redondante
+
+La méthode `loadDayViewEvents` dans backend-calendar.js ) était probablement utilisée auparavant pour un traitement spécifique de la vue jour, mais plusieurs éléments confirment que cette fonction est désormais obsolète :
+
+1. **Aucun appel dans le code** - Aucune référence à `this.backend.loadDayViewEvents()` n'existe dans frontend-calendar.js
+
+2. **Commentaire explicite** - Dans votre méthode `reloadEvents()`, le commentaire indique clairement :
+   ```javascript
+   this.backend.loadEvents(startDate, endDate, (error, events) => {
+     // ...
+   }, false); // Plus besoin de traitement spécial pour la vue jour
+   ```
+
+3. **Approche unifiée** - Le code utilise maintenant une approche unique avec `loadEvents()` pour toutes les vues
+
+## Sécurité de suppression
+
+Vous pouvez supprimer cette méthode sans risque, ce qui améliorera la maintenabilité de votre code en éliminant des fonctionnalités mortes.
+
+```javascript
+// Supprimer cette méthode complète de backend-calendar.js
+loadDayViewEvents(date, callback) {
+  // S'assurer que date est un objet Date
+  const dateObj = date instanceof Date ? date : new Date(date);
+  
+  // Formater pour l'API avec les heures (ne pas tronquer)
+  const formattedDate = dateObj.toISOString();
+  
+  $.ajax({
+    url: this.baseUrl + 'ajax-handler.php?action=get-day-events',
+    type: 'GET',
+    data: {
+      date: formattedDate
+    },
+    dataType: 'json',
+    success: (response) => {
+      console.log('Événements vue jour chargés:', response.length || 0, 'événements');
+      if (callback && typeof callback === 'function') {
+        callback(null, response);
+      }
+    },
+    error: (jqXHR, textStatus, errorThrown) => {
+      console.error('Erreur lors du chargement des événements jour:', textStatus, errorThrown);
+      if (callback && typeof callback === 'function') {
+        callback(new Error('Erreur lors du chargement des événements'), null);
+      }
+    }
+  });
+}
+```
+
+N'oubliez pas de vérifier si l'endpoint `ajax-handler.php?action=get-day-events` est également inutilisé et pourrait être supprimé du backend.
+
+
+<?php
+case 'get-event':
+    $eventController = new EventController();
+    $eventController->getEvent();
+    break;
+
+case 'toggle-calendar-visibility':
+    $calendarController = new CalendarController();
+    $calendarController->toggleVisibility();
+    break;
+
+
+Ajout de la méthode getEvent() à EventController
+Voici la méthode getEvent() à ajouter dans la classe EventController pour harmoniser le code :
+<?php
+/**
+ * API : Récupérer un événement spécifique par son ID
+ */
+public function getEvent()
+{
+    // Vérifier que l'utilisateur est connecté
+    if (!isset($_SESSION['user_id'])) {
+        $this->jsonResponse(['success' => false, 'message' => 'Non autorisé'], 401);
+        return;
+    }
+
+    // Vérifier les paramètres obligatoires
+    if (!isset($_GET['id']) || !isset($_GET['calendarId'])) {
+        $this->jsonResponse(['success' => false, 'message' => 'ID d\'événement ou de calendrier manquant'], 400);
+        return;
+    }
+    
+    $eventId = $_GET['id'];
+    $calendarId = $_GET['calendarId'];
+    
+    // Récupérer l'événement
+    $event = $this->eventModel->getById($eventId);
+    
+    if (!$event) {
+        $this->jsonResponse(['success' => false, 'message' => 'Événement non trouvé'], 404);
+        return;
+    }
+    
+    // Récupérer les données du calendrier
+    $calendar = $this->calendarModel->getById($event['calendar_id']);
+    $calendarColor = $calendar ? $calendar['color'] : '#2c3e50';
+    
+    // Récupérer les données de la catégorie
+    $category = $this->categoryModel->getById($event['category_id']);
+    $categoryColor = $category ? $category['bg_color'] : '#34495e';
+    $categoryTextColor = $category ? $category['color'] : '#ffffff';
+    
+    // Formater les dates avec la bonne gestion du fuseau horaire
+    $startDate = formatMySQLDateForJavaScript($event['start_date']);
+    $endDate = formatMySQLDateForJavaScript($event['end_date']);
+    
+    // Formater l'événement pour le frontend
+    $formattedEvent = [
+        'id' => $event['event_id'],
+        'calendarId' => $event['calendar_id'],
+        'title' => $event['title'],
+        'body' => $event['body'], // Correction du champ description -> body
+        'location' => $event['location'],
+        'start' => $startDate,
+        'end' => $endDate,
+        'isAllDay' => (bool) $event['is_all_day'],
+        'calendarColor' => $calendarColor,
+        'categoryColor' => $categoryColor,
+        'categoryTextColor' => $categoryTextColor,
+        'categoryId' => $event['category_id'],
+        'raw' => [
+            'calendarColor' => $calendarColor,
+            'categoryColor' => $categoryColor,
+            'categoryTextColor' => $categoryTextColor,
+            'categoryId' => $event['category_id']
+        ]
+    ];
+    
+    $this->jsonResponse(['success' => true, 'event' => $formattedEvent]);
+}
+
+?php
+case 'toggle-calendar-visibility':
+    $calendarController = new CalendarController();
+    $calendarController->toggleCalendarVisibility();
+    break;
+
+    Ce remplacement est suffisant car la méthode toggleCalendarVisibility() dans CalendarController gère déjà :
+
+pas encore
+
+Vous avez raison - Aucune view edit.php n'est nécessaire
+Vous avez parfaitement identifié l'architecture de votre application. Il existe deux approches qui se mélangent dans votre code :
+
+1. Architecture actuelle (SPA avec modals)
+✅ Toute la gestion des événements se fait via des modals Bootstrap dans index.php
+✅ Le JavaScript front-end (frontend-calendar.js) gère l'affichage et l'interaction
+✅ Le JavaScript back-end (backend-calendar.js) gère les communications AJAX
+✅ ajax-handler.php sert de point d'entrée unique pour les requêtes
+2. Vestige d'une architecture traditionnelle
+❌ Le code include __DIR__ . '/../views/event/edit.php'; est un vestige ou une erreur
+❌ Ce fichier n'existe pas et n'est pas nécessaire dans votre implémentation actuelle
+Votre calendrier fonctionne selon un modèle "Single Page Application" (SPA) où toutes les interactions sont gérées en JavaScript, sans rechargement de page. Les méthodes openEditModal(), setupEditModal() et saveEvent() dans frontend-calendar.js remplacent entièrement le besoin d'une vue PHP séparée.
+
+Vous pouvez soit supprimer cette ligne, soit modifier le contrôleur pour qu'il utilise l'approche AJAX cohérente avec le reste de votre application.

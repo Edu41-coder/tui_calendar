@@ -685,6 +685,72 @@ class EventController
         exit;
     }
 
+        /**
+     * API : Récupérer un événement spécifique par son ID
+     */
+    public function getEvent()
+    {
+        // Vérifier que l'utilisateur est connecté
+        if (!isset($_SESSION['user_id'])) {
+            $this->jsonResponse(['success' => false, 'message' => 'Non autorisé'], 401);
+            return;
+        }
+
+        // Vérifier les paramètres obligatoires
+        if (!isset($_GET['id']) || !isset($_GET['calendarId'])) {
+            $this->jsonResponse(['success' => false, 'message' => 'ID d\'événement ou de calendrier manquant'], 400);
+            return;
+        }
+        
+        $eventId = $_GET['id'];
+        $calendarId = $_GET['calendarId'];
+        
+        // Récupérer l'événement
+        $event = $this->eventModel->getById($eventId);
+        
+        if (!$event) {
+            $this->jsonResponse(['success' => false, 'message' => 'Événement non trouvé'], 404);
+            return;
+        }
+        
+        // Récupérer les données du calendrier
+        $calendar = $this->calendarModel->getById($event['calendar_id']);
+        $calendarColor = $calendar ? $calendar['color'] : '#2c3e50';
+        
+        // Récupérer les données de la catégorie
+        $category = $this->categoryModel->getById($event['category_id']);
+        $categoryColor = $category ? $category['bg_color'] : '#34495e';
+        $categoryTextColor = $category ? $category['color'] : '#ffffff';
+        
+        // Formater les dates avec la bonne gestion du fuseau horaire
+        $startDate = formatMySQLDateForJavaScript($event['start_date']);
+        $endDate = formatMySQLDateForJavaScript($event['end_date']);
+        
+        // Formater l'événement pour le frontend
+        $formattedEvent = [
+            'id' => $event['event_id'],
+            'calendarId' => $event['calendar_id'],
+            'title' => $event['title'],
+            'body' => $event['body'], // Correction du champ description -> body
+            'location' => $event['location'],
+            'start' => $startDate,
+            'end' => $endDate,
+            'isAllDay' => (bool) $event['is_all_day'],
+            'calendarColor' => $calendarColor,
+            'categoryColor' => $categoryColor,
+            'categoryTextColor' => $categoryTextColor,
+            'categoryId' => $event['category_id'],
+            'raw' => [
+                'calendarColor' => $calendarColor,
+                'categoryColor' => $categoryColor,
+                'categoryTextColor' => $categoryTextColor,
+                'categoryId' => $event['category_id']
+            ]
+        ];
+        
+        $this->jsonResponse(['success' => true, 'event' => $formattedEvent]);
+    }
+
     /**
      * Exporter les événements au format iCalendar (ICS)
      * 

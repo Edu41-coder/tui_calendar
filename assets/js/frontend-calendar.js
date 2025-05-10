@@ -1243,32 +1243,20 @@ class CalendarFrontend {
         // IMPORTANT - Mise à jour visuelle immédiate
         this.reloadEvents();
         
-        // Mettre à jour la base de données via AJAX
-        fetch(this.config.baseUrl + 'ajax-handler.php?action=toggle-calendar-visibility', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body: `calendar_id=${calendarId}&visible=${isVisible ? 1 : 0}`
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (!data.success) {
-            console.error('Erreur lors de la mise à jour de la visibilité:', data.message);
+        // Utiliser la méthode du backend 
+        this.backend.toggleCalendarVisibility(calendarId, isVisible, (error, response) => {
+          if (error) {
+            console.error('Erreur lors de la mise à jour de la visibilité:', error.message);
             e.target.checked = !isVisible;
             
             // Recharger à nouveau en cas d'erreur pour revenir à l'état précédent
             this.reloadEvents();
           }
-        })
-        .catch(error => {
-          console.error('Erreur réseau:', error);
-          e.target.checked = !isVisible;
-          
-          // Recharger à nouveau en cas d'erreur
-          this.reloadEvents();
         });
       });
     });
   }
+  
   
   /**
    * Fonctions d'interface utilisateur

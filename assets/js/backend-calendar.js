@@ -340,39 +340,6 @@ class CalendarBackend {
       });
     }
     
-    /**
-     * Charger les événements pour une vue jour en préservant les heures
-     * @param {Date|String} date - Date du jour
-     * @param {Function} callback - Fonction de rappel
-     */
-    loadDayViewEvents(date, callback) {
-      // S'assurer que date est un objet Date
-      const dateObj = date instanceof Date ? date : new Date(date);
-      
-      // Formater pour l'API avec les heures (ne pas tronquer)
-      const formattedDate = dateObj.toISOString();
-      
-      $.ajax({
-        url: this.baseUrl + 'ajax-handler.php?action=get-day-events',
-        type: 'GET',
-        data: {
-          date: formattedDate
-        },
-        dataType: 'json',
-        success: (response) => {
-          console.log('Événements vue jour chargés:', response.length || 0, 'événements');
-          if (callback && typeof callback === 'function') {
-            callback(null, response);
-          }
-        },
-        error: (jqXHR, textStatus, errorThrown) => {
-          console.error('Erreur lors du chargement des événements jour:', textStatus, errorThrown);
-          if (callback && typeof callback === 'function') {
-            callback(new Error('Erreur lors du chargement des événements'), null);
-          }
-        }
-      });
-    }
     
     /**
      * Récupérer un événement spécifique par son ID
@@ -396,6 +363,37 @@ class CalendarBackend {
           console.error('Erreur lors de la récupération de l\'événement:', error);
           callback && callback('Erreur réseau lors de la récupération de l\'événement', null);
         });
+    }
+    
+    /**
+     * Met à jour la visibilité d'un calendrier
+     * @param {Number} calendarId - ID du calendrier
+     * @param {Boolean} visible - Nouvel état de visibilité
+     * @param {Function} callback - Fonction de rappel
+     */
+    toggleCalendarVisibility(calendarId, visible, callback) {
+      $.ajax({
+        url: this.baseUrl + 'ajax-handler.php?action=toggle-calendar-visibility',
+        type: 'POST',
+        data: {
+          calendar_id: calendarId,
+          visible: visible ? 1 : 0
+        },
+        dataType: 'json',
+        success: (response) => {
+          if (response.success) {
+            this.alertSystem.success('Visibilité du calendrier mise à jour');
+            callback && callback(null, response);
+          } else {
+            this.alertSystem.error(response.message || 'Erreur de mise à jour');
+            callback && callback(new Error(response.message), null);
+          }
+        },
+        error: (xhr, status, error) => {
+          this.alertSystem.error('Erreur de communication');
+          callback && callback(new Error(error), null);
+        }
+      });
     }
     
     /**
@@ -463,6 +461,7 @@ class CalendarBackend {
       
       return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
     }
+
   }
   window.CalendarBackendClass = CalendarBackend; // Exposer la classe elle-même  
   // Créer une instance unique globale
