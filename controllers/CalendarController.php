@@ -481,46 +481,57 @@ class CalendarController {
      * Changer la visibilité d'un calendrier (via AJAX)
      */
     public function toggleCalendarVisibility() {
-        // Vérifier que l'utilisateur est connecté
-        if (!isset($_SESSION['user_id'])) {
+        try {
+            // Vérifier que l'utilisateur est connecté
+            if (!isset($_SESSION['user_id'])) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Non autorisé']);
+                exit;
+            }
+            
+            $user_id = $_SESSION['user_id'];
+            
+            // Debug: afficher les données reçues
+            error_log('POST data: ' . print_r($_POST, true));
+            
+            // Vérifier que les données nécessaires sont présentes
+            if (!isset($_POST['calendar_id']) || !isset($_POST['visible'])) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Données manquantes: calendar_id=' . 
+                    (isset($_POST['calendar_id']) ? $_POST['calendar_id'] : 'manquant') . 
+                    ', visible=' . (isset($_POST['visible']) ? $_POST['visible'] : 'manquant')]);
+                exit;
+            }
+            
+            $calendar_id = (int)$_POST['calendar_id'];
+            $visible = $_POST['visible'] === 'true' || $_POST['visible'] === '1';
+            
+            // Récupérer le calendrier
+            $calendar = $this->calendarModel->getById($calendar_id);
+            
+            // Vérifier que le calendrier appartient à l'utilisateur
+            if (!$calendar || $calendar['user_id'] != $user_id) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Calendrier non trouvé ou non autorisé']);
+                exit;
+            }
+            
+            // Mettre à jour la visibilité
+            $result = $this->calendarModel->setVisibility($calendar_id, $visible);
+            
+            // Renvoyer le résultat en JSON
             header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Non autorisé']);
+            echo json_encode([
+                'success' => $result,
+                'message' => $result ? 'Visibilité mise à jour' : 'Erreur lors de la mise à jour',
+                'visible' => $visible
+            ]);
+            exit;
+        } catch (Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Erreur serveur: ' . $e->getMessage()]);
             exit;
         }
-        
-        $user_id = $_SESSION['user_id'];
-        
-        // Vérifier que les données nécessaires sont présentes
-        if (!isset($_POST['calendar_id']) || !isset($_POST['visible'])) {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Données manquantes']);
-            exit;
-        }
-        
-        $calendar_id = (int)$_POST['calendar_id'];
-        $visible = $_POST['visible'] === 'true' || $_POST['visible'] === '1';
-        
-        // Récupérer le calendrier
-        $calendar = $this->calendarModel->getById($calendar_id);
-        
-        // Vérifier que le calendrier appartient à l'utilisateur
-        if (!$calendar || $calendar['user_id'] != $user_id) {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Calendrier non trouvé ou non autorisé']);
-            exit;
-        }
-        
-        // Mettre à jour la visibilité
-        $result = $this->calendarModel->setVisibility($calendar_id, $visible);
-        
-        // Renvoyer le résultat en JSON
-        header('Content-Type: application/json');
-        echo json_encode([
-            'success' => $result,
-            'message' => $result ? 'Visibilité mise à jour' : 'Erreur lors de la mise à jour',
-            'visible' => $visible
-        ]);
-        exit;
     }
     
     /**

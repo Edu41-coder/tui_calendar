@@ -368,6 +368,26 @@ class EventController
         // Afficher les détails de l'événement
         include __DIR__ . '/../views/event/view.php';
     }
+    /**
+     * Convertit une date JavaScript en format MySQL
+     * @param string $dateString Chaîne de date au format JavaScript ISO8601
+     * @return string Date formatée pour MySQL
+     */
+    private function formatJavaScriptDateForMySQL($dateString)
+    {
+        // Si la chaîne est au format ISO 8601 avec timezone
+        if (preg_match('/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/', $dateString)) {
+            // Créer un objet DateTime à partir de la chaîne ISO
+            $date = new DateTime($dateString);
+
+            // Formater pour MySQL sans convertir le fuseau horaire
+            return $date->format('Y-m-d H:i:s');
+        } else {
+            // Pour les formats non-ISO, utiliser strtotime
+            $timestamp = strtotime($dateString);
+            return date('Y-m-d H:i:s', $timestamp);
+        }
+    }
 
     /**
      * API : Créer ou mettre à jour un événement via AJAX
@@ -396,24 +416,25 @@ class EventController
 
         // Conversion des dates avec la méthode commune
         try {
-            $startDate = isset($data['start']) ? formatJavaScriptDateForMySQL($data['start']) : null;
-            $endDate = isset($data['end']) ? formatJavaScriptDateForMySQL($data['end']) : null;
-            
+            $startDate = isset($data['start']) ? $this->formatJavaScriptDateForMySQL($data['start']) : null;
+            $endDate = isset($data['end']) ? $this->formatJavaScriptDateForMySQL($data['end']) : null;
+
             // Ajouter des logs pour le débogage
             error_log('Date de début reçue: ' . ($data['start'] ?? 'non définie'));
             error_log('Date de début formatée pour MySQL: ' . $startDate);
             error_log('Date de fin formatée pour MySQL: ' . $endDate);
-            
+
             // Détection automatique des événements sur toute la journée
             $isAllDay = isset($data['isAllDay']) ? ($data['isAllDay'] ? 1 : 0) : 0;
-            
+
             // Si l'événement commence à minuit et se termine à 23:59, le considérer comme "toute la journée"
             if ($startDate && $endDate) {
                 $startTime = substr($startDate, 11, 8); // Extrait HH:MM:SS
                 $endTime = substr($endDate, 11, 8);     // Extrait HH:MM:SS
-                
-                if (($startTime === '00:00:00' || $startTime === '00:00:00') && 
-                    (substr($endTime, 0, 5) === '23:59')) {
+
+                if (($startTime === '00:00:00' || $startTime === '00:00:00') &&
+                    (substr($endTime, 0, 5) === '23:59')
+                ) {
                     $isAllDay = 1;
                     error_log('Événement détecté comme "toute la journée" basé sur les heures');
                 }
@@ -501,7 +522,8 @@ class EventController
     /**
      * API : Déplacer un événement via AJAX (drag & drop)
      */
-    public function move() {
+    public function move()
+    {
         // Vérifier que l'utilisateur est connecté
         if (!isset($_SESSION['user_id'])) {
             header('Content-Type: application/json');
@@ -570,22 +592,23 @@ class EventController
         }
 
         try {
-            $formattedStart = is_string($startDate) ? formatJavaScriptDateForMySQL($startDate) : date('Y-m-d H:i:s');
-            $formattedEnd = is_string($endDate) ? formatJavaScriptDateForMySQL($endDate) : date('Y-m-d H:i:s', strtotime('+1 hour'));
-            
+            $formattedStart = is_string($startDate) ?  $this->formatJavaScriptDateForMySQL($startDate) : date('Y-m-d H:i:s');
+            $formattedEnd = is_string($endDate) ?  $this->formatJavaScriptDateForMySQL($endDate) : date('Y-m-d H:i:s', strtotime('+1 hour'));
+
             // Détection automatique des événements sur toute la journée
             $isAllDay = isset($data['isAllDay']) ? ($data['isAllDay'] ? 1 : 0) : $event['is_all_day'];
-            
+
             // Si l'événement commence à minuit et se termine à 23:59, le considérer comme "toute la journée"
             $startTime = substr($formattedStart, 11, 8); // Extrait HH:MM:SS
             $endTime = substr($formattedEnd, 11, 8);     // Extrait HH:MM:SS
-            
-            if (($startTime === '00:00:00' || $startTime === '00:00:00') && 
-                (substr($endTime, 0, 5) === '23:59')) {
+
+            if (($startTime === '00:00:00' || $startTime === '00:00:00') &&
+                (substr($endTime, 0, 5) === '23:59')
+            ) {
                 $isAllDay = 1;
                 error_log('Événement déplacé détecté comme "toute la journée" basé sur les heures');
             }
-            
+
             error_log('Déplacement - Date de début convertie: ' . $formattedStart);
             error_log('Déplacement - Date de fin convertie: ' . $formattedEnd);
         } catch (Exception $e) {
@@ -621,8 +644,8 @@ class EventController
         }
         exit;
     }
-    
-        
+
+
     /**
      * API : Supprimer un événement via AJAX
      */
@@ -996,6 +1019,73 @@ class EventController
     }
 
     /**
+     * API : Récupérer un événement spécifique par son ID
+     */
+    public function getEvent()
+    {
+        // Vérifier que l'utilisateur est connecté
+        if (!isset($_SESSION['user_id'])) {
+            $this->jsonResponse(['success' => false, 'message' => 'Non autorisé'], 401);
+            return;
+        }
+
+        // Vérifier les paramètres obligatoires
+        if (!isset($_GET['id']) || !isset($_GET['calendarId'])) {
+            $this->jsonResponse(['success' => false, 'message' => 'ID d\'événement ou de calendrier manquant'], 400);
+            return;
+        }
+
+        $eventId = $_GET['id'];
+        $calendarId = $_GET['calendarId'];
+
+        // Récupérer l'événement
+        $event = $this->eventModel->getById($eventId);
+
+        if (!$event) {
+            $this->jsonResponse(['success' => false, 'message' => 'Événement non trouvé'], 404);
+            return;
+        }
+
+        // Récupérer les données du calendrier
+        $calendar = $this->calendarModel->getById($event['calendar_id']);
+        $calendarColor = $calendar ? $calendar['color'] : '#2c3e50';
+
+        // Récupérer les données de la catégorie
+        $category = $this->categoryModel->getById($event['category_id']);
+        $categoryColor = $category ? $category['bg_color'] : '#34495e';
+        $categoryTextColor = $category ? $category['color'] : '#ffffff';
+
+        // Formater les dates avec la bonne gestion du fuseau horaire
+        $startDate = formatMySQLDateForJavaScript($event['start_date']);
+        $endDate = formatMySQLDateForJavaScript($event['end_date']);
+
+        // Formater l'événement pour le frontend
+        $formattedEvent = [
+            'id' => $event['event_id'],
+            'calendarId' => $event['calendar_id'],
+            'title' => $event['title'],
+            'body' => $event['body'], // Correction du champ description -> body
+            'location' => $event['location'],
+            'start' => $startDate,
+            'end' => $endDate,
+            'isAllDay' => (bool) $event['is_all_day'],
+            'calendarColor' => $calendarColor,
+            'categoryColor' => $categoryColor,
+            'categoryTextColor' => $categoryTextColor,
+            'categoryId' => $event['category_id'],
+            'raw' => [
+                'calendarColor' => $calendarColor,
+                'categoryColor' => $categoryColor,
+                'categoryTextColor' => $categoryTextColor,
+                'categoryId' => $event['category_id']
+            ]
+        ];
+
+        $this->jsonResponse(['success' => true, 'event' => $formattedEvent]);
+    }
+
+    /**
+    
      * API : Récupérer les événements pour une période donnée avec debug amélioré
      */
     public function getEvents()

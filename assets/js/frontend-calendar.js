@@ -13,61 +13,69 @@ class CalendarFrontend {
     this.config = {
       baseUrl: "/tui_calendar/",
       defaultView: "week",
-      ...options
+      ...options,
     };
-    
+
     // Variables d'état
     this.calendar = null;
     this.calendarData = window.calendarData || [];
     this.calendarIds = window.calendarIds || [];
     this.attachHandlersTimeout = null;
     this.arrowClickInProgress = false;
-    
+
     // Composants UI
     this.modal = null;
     this.modalTitle = null;
     this.editEventId = null;
     this.deleteEventBtn = null;
-    
-    // MODIFICATION: Utiliser uniquement l'initialisation forcée
-    // Supprimer l'initialisation automatique au chargement du DOM
-    // document.addEventListener("DOMContentLoaded", () => this.initialize());
+
+    document.addEventListener("DOMContentLoaded", () => this.initialize());
   }
-  
+
   /**
    * Initialise tous les composants du calendrier
    */
   initialize() {
     try {
       console.log("Démarrage de l'initialisation");
-      
+
       // Vérifier TUI Calendar
-      console.log("TUI disponible?", typeof tui !== 'undefined');
-      console.log("TUI Calendar disponible?", typeof tui !== 'undefined' && typeof tui.Calendar !== 'undefined');
-      
-      if (typeof tui === 'undefined' || typeof tui.Calendar === 'undefined') {
-        console.error("ERREUR CRITIQUE: La bibliothèque TUI Calendar n'est pas chargée");
-        alert("Erreur: La bibliothèque TUI Calendar n'est pas chargée correctement");
+      console.log("TUI disponible?", typeof tui !== "undefined");
+      console.log(
+        "TUI Calendar disponible?",
+        typeof tui !== "undefined" && typeof tui.Calendar !== "undefined"
+      );
+
+      if (typeof tui === "undefined" || typeof tui.Calendar === "undefined") {
+        console.error(
+          "ERREUR CRITIQUE: La bibliothèque TUI Calendar n'est pas chargée"
+        );
+        alert(
+          "Erreur: La bibliothèque TUI Calendar n'est pas chargée correctement"
+        );
         return;
       }
-      
+
       console.log("DOM prêt?", document.readyState);
       console.log("Document complet?", document.body !== null);
-      
+
       // Vérification du backend
-      console.log("Backend créé?", window.calendarBackend instanceof window.CalendarBackendClass);
+      console.log(
+        "Backend créé?",
+        window.calendarBackend instanceof window.CalendarBackendClass
+      );
       console.log("Contenu de window.calendarBackend:", window.calendarBackend);
-      
+
       console.log("CalendarFrontend: Initialisation...");
       console.log("Backend disponible?", !!window.calendarBackend);
       this.backend = window.calendarBackend;
-      
+
       // Ajouter les styles pour les flèches d'extension
       this.addExtensionArrowStyles();
-      
+
       // Initialiser le calendrier
       this.calendar = this.initializeCalendar(this.calendarData);
-      
+
       // Configuration des événements et de l'UI
       this.attachEventHandlers();
       this.updateCalendarHeader();
@@ -75,15 +83,12 @@ class CalendarFrontend {
       this.initializeDatepicker();
       this.initializeModals();
       this.initializeCalendarCheckboxes();
-      
+
       // Charger les événements initiaux
       this.loadInitialEvents();
-      
+
       // Nettoyage automatique des sélections
       this.setupSelectionCleanup();
-      
-      // Surveiller les rendus pour recharger les événements
-      this.calendar.on('afterRender', () => this.reloadEvents());
     } catch (error) {
       console.error("ERREUR CRITIQUE LORS DE L'INITIALISATION:", error);
       alert("Le calendrier n'a pas pu être initialisé: " + error.message);
@@ -91,45 +96,64 @@ class CalendarFrontend {
   }
   setupSelectionCleanup() {
     // Nettoyage de la sélection en vue mensuelle
-    document.addEventListener("click", (e) => {
-      if (!this.calendar) return;
-      
-      if (this.calendar.getViewName() === "month") {
-        // Si le clic n'est pas sur une sélection ou un popup
-        const isSelection = e.target.closest(
-          ".tui-full-calendar-month-guide-block, .tui-full-calendar-month-creation-guide"
-        );
-        const isPopup = e.target.closest(".tui-full-calendar-popup-container");
-        
-        if (!isSelection && !isPopup) {
-          // Supprime toutes les sélections du mois
-          document.querySelectorAll(
+    document.addEventListener(
+      "click",
+      (e) => {
+        if (!this.calendar) return;
+
+        if (this.calendar.getViewName() === "month") {
+          // Si le clic n'est pas sur une sélection ou un popup
+          const isSelection = e.target.closest(
             ".tui-full-calendar-month-guide-block, .tui-full-calendar-month-creation-guide"
-          ).forEach(el => {
-            el.parentNode && el.parentNode.removeChild(el);
-          });
+          );
+          const isPopup = e.target.closest(
+            ".tui-full-calendar-popup-container"
+          );
+
+          if (!isSelection && !isPopup) {
+            // Supprime toutes les sélections du mois
+            document
+              .querySelectorAll(
+                ".tui-full-calendar-month-guide-block, .tui-full-calendar-month-creation-guide"
+              )
+              .forEach((el) => {
+                el.parentNode && el.parentNode.removeChild(el);
+              });
+          }
         }
-      }
-    }, true);
-    
+      },
+      true
+    );
+
     // Nettoyage de la sélection en vue semaine
-    document.addEventListener("click", (e) => {
-      if (!this.calendar) return;
-      
-      if (this.calendar.getViewName() === "week") {
-        // Si le clic n'est pas sur une sélection ou un popup
-        const isSelection = e.target.closest(".tui-full-calendar-daygrid-guide-creation-block");
-        const isPopup = e.target.closest(".tui-full-calendar-popup-container");
-        
-        if (!isSelection && !isPopup) {
-          // Supprime toutes les sélections de la semaine
-          document.querySelectorAll(".tui-full-calendar-daygrid-guide-creation-block")
-            .forEach(el => {
-              el.parentNode && el.parentNode.removeChild(el);
-            });
+    document.addEventListener(
+      "click",
+      (e) => {
+        if (!this.calendar) return;
+
+        if (this.calendar.getViewName() === "week") {
+          // Si le clic n'est pas sur une sélection ou un popup
+          const isSelection = e.target.closest(
+            ".tui-full-calendar-daygrid-guide-creation-block"
+          );
+          const isPopup = e.target.closest(
+            ".tui-full-calendar-popup-container"
+          );
+
+          if (!isSelection && !isPopup) {
+            // Supprime toutes les sélections de la semaine
+            document
+              .querySelectorAll(
+                ".tui-full-calendar-daygrid-guide-creation-block"
+              )
+              .forEach((el) => {
+                el.parentNode && el.parentNode.removeChild(el);
+              });
+          }
         }
-      }
-    }, true);
+      },
+      true
+    );
   }
 
   /**
@@ -176,7 +200,7 @@ class CalendarFrontend {
     `;
     document.head.appendChild(styleElement);
   }
-  
+
   /**
    * Initialise l'instance TUI Calendar
    */
@@ -184,9 +208,11 @@ class CalendarFrontend {
     const calendarEl = document.getElementById("calendar");
     console.log("Élément #calendar trouvé?", calendarEl !== null);
     console.log("Élément #calendar:", calendarEl);
-    
+
     if (!calendarEl) {
-      console.error("ERREUR CRITIQUE: Élément #calendar non trouvé dans le DOM");
+      console.error(
+        "ERREUR CRITIQUE: Élément #calendar non trouvé dans le DOM"
+      );
       alert("Erreur: Le conteneur du calendrier n'a pas été trouvé.");
       return null;
     }
@@ -213,14 +239,15 @@ class CalendarFrontend {
         daynames: ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"],
       },
       template: {
-        allday: schedule => schedule.title,
-        alldayTitle: () => '<div style="text-align: center; width: 100%;">Toute la journée</div>',
-        time: schedule => this.renderTimeTemplate(schedule),
-        monthGridSchedule: schedule => this.renderMonthTemplate(schedule)
+        allday: (schedule) => schedule.title,
+        alldayTitle: () =>
+          '<div style="text-align: center; width: 100%;">Toute la journée</div>',
+        time: (schedule) => this.renderTimeTemplate(schedule),
+        monthGridSchedule: (schedule) => this.renderMonthTemplate(schedule),
       },
     });
   }
-  
+
   /**
    * Template de rendu pour les événements dans la vue time
    */
@@ -231,7 +258,9 @@ class CalendarFrontend {
     if (currentView !== "week" || schedule.category !== "time") {
       // Affichage normal sans flèches
       return `
-        <div class="event-content" data-schedule-id="${schedule.id}" data-calendar-id="${schedule.calendarId}" style="
+        <div class="event-content" data-schedule-id="${
+          schedule.id
+        }" data-calendar-id="${schedule.calendarId}" style="
           position: relative;
           width: 100%;
           height: 100%;
@@ -284,7 +313,7 @@ class CalendarFrontend {
       </div>
     `;
   }
-  
+
   /**
    * Template de rendu pour les événements dans la vue month
    */
@@ -309,63 +338,83 @@ class CalendarFrontend {
       </div>
     `;
   }
-  
+
   /**
    * Recharge les événements pour la période affichée
    */
   reloadEvents() {
     const currentView = this.calendar.getViewName();
-    
+
     // Obtenir la plage de dates affichée réellement
     const rangeStart = this.calendar.getDateRangeStart();
     const rangeEnd = this.calendar.getDateRangeEnd();
-    
+
     // Convertir et corriger le décalage
-    let startDate = rangeStart instanceof Date ? rangeStart : 
-                   (rangeStart._date ? new Date(rangeStart._date) : new Date(rangeStart));
-    
-    let endDate = rangeEnd instanceof Date ? rangeEnd : 
-                 (rangeEnd._date ? new Date(rangeEnd._date) : new Date(rangeEnd));
-                 
+    let startDate =
+      rangeStart instanceof Date
+        ? rangeStart
+        : rangeStart._date
+        ? new Date(rangeStart._date)
+        : new Date(rangeStart);
+
+    let endDate =
+      rangeEnd instanceof Date
+        ? rangeEnd
+        : rangeEnd._date
+        ? new Date(rangeEnd._date)
+        : new Date(rangeEnd);
+
     // IMPORTANT: Ajouter exactement 1 jour à la date de fin pour inclure tous les événements
     endDate = new Date(endDate);
     endDate.setDate(endDate.getDate() + 1);
-    
+
     // Récupérer les IDs des calendriers visibles
     const visibleCalendars = this.getVisibleCalendarIds();
-    
-    console.log(`Rechargement des événements pour la vue ${currentView} du ${startDate.toLocaleDateString()} au ${endDate.toLocaleDateString()}`);
-    console.log(`Filtré par calendriers: ${visibleCalendars.join(', ')}`);
-    
+
+    console.log(
+      `Rechargement des événements pour la vue ${currentView} du ${startDate.toLocaleDateString()} au ${endDate.toLocaleDateString()}`
+    );
+    console.log(`Filtré par calendriers: ${visibleCalendars.join(", ")}`);
+
     // Utiliser une approche unifiée pour toutes les vues
-    this.backend.loadEvents(startDate, endDate, (error, events) => {
-      if (error) {
-        console.error("Erreur lors du chargement des événements:", error);
-        // Afficher une alerte visible à l'utilisateur
-        alert("Erreur de chargement des événements: " + error.message);
-        return;
-      }
-      
-      console.log(`${events.length} événements chargés pour la vue ${currentView}`);
-      console.log("Détail des événements:", JSON.stringify(events));
-      
-      // Filtrer les événements par calendrier visible
-      if (events && events.length) {
-        events = events.filter(event => visibleCalendars.includes(event.calendarId.toString()));
-        console.log(`Après filtrage: ${events.length} événements à afficher`);
-      }
-      
-      // Vider le calendrier
-      this.calendar.clear();
-      
-      if (!events || !events.length) return;
-      
-      // Créer tous les événements et forcer un rendu complet
-      this.calendar.createSchedules(events.map(event => this.transformEvent(event)));
-      this.calendar.render(); // AJOUT CRUCIAL: Force le rendu
-    }, false); // Plus besoin de traitement spécial pour la vue jour
+    this.backend.loadEvents(
+      startDate,
+      endDate,
+      (error, events) => {
+        if (error) {
+          console.error("Erreur lors du chargement des événements:", error);
+          alert("Erreur de chargement des événements: " + error.message);
+          return;
+        }
+
+        console.log(
+          `${events.length} événements chargés pour la vue ${currentView}`
+        );
+
+        // Filtrer les événements par calendrier visible
+        if (events && events.length) {
+          events = events.filter((event) =>
+            visibleCalendars.includes(event.calendarId.toString())
+          );
+          console.log(`Après filtrage: ${events.length} événements à afficher`);
+        }
+
+        // Vider le calendrier
+        this.calendar.clear();
+
+        if (events && events.length) {
+          // Créer tous les événements
+          this.calendar.createSchedules(
+            events.map((event) => this.transformEvent(event))
+          );
+          // Render est nécessaire ici pour afficher les événements après le clear
+          this.calendar.render();
+        }
+      },
+      false
+    );
   }
-  
+
   /**
    * Transforme un événement du format backend au format TUI Calendar
    */
@@ -374,11 +423,16 @@ class CalendarFrontend {
       // S'assurer que les dates sont valides
       const startDate = new Date(event.start);
       const endDate = new Date(event.end);
-      
-      console.log(`Transformation événement ${event.id}: ${startDate} à ${endDate}`);
-      
-      const isAllDay = event.isAllDay === true || event.isAllDay === 1 || event.isAllDay === "1";
-      
+
+      console.log(
+        `Transformation événement ${event.id}: ${startDate} à ${endDate}`
+      );
+
+      const isAllDay =
+        event.isAllDay === true ||
+        event.isAllDay === 1 ||
+        event.isAllDay === "1";
+
       return {
         id: event.id,
         calendarId: event.calendarId,
@@ -393,15 +447,15 @@ class CalendarFrontend {
           categoryTextColor: event.categoryTextColor || "#000000",
           categoryId: event.categoryId,
           location: event.location || "",
-          body: event.body || ""
-        }
+          body: event.body || "",
+        },
       };
     } catch (error) {
       console.error("Erreur de transformation d'événement:", error, event);
       return null;
     }
   }
-  
+
   /**
    * Charge les événements initiaux depuis le backend
    */
@@ -427,21 +481,25 @@ class CalendarFrontend {
 
       if (events && events.length) {
         // Convertir les événements au format TUI Calendar et les ajouter
-        this.calendar.createSchedules(events.map(event => this.transformEvent(event)));
+        this.calendar.createSchedules(
+          events.map((event) => this.transformEvent(event))
+        );
         this.calendar.render();
       }
     });
   }
-  
+
   /**
    * Filtre les calendriers visibles actuellement
    * @returns {Array} Liste des IDs de calendriers visibles
    */
   getVisibleCalendarIds() {
     const visibleCalendars = [];
-    document.querySelectorAll('.calendar-checkbox:checked').forEach(checkbox => {
-      visibleCalendars.push(checkbox.value);
-    });
+    document
+      .querySelectorAll(".calendar-checkbox:checked")
+      .forEach((checkbox) => {
+        visibleCalendars.push(checkbox.value);
+      });
     console.log("Calendriers visibles:", visibleCalendars);
     return visibleCalendars;
   }
@@ -451,166 +509,177 @@ class CalendarFrontend {
    */
   attachEventHandlers() {
     // Clic sur les flèches d'extension
-    document.addEventListener("click", (e) => {
-      const arrow = e.target.closest(".event-extension-arrow");
-      if (arrow) {
-        // Définir un flag global avec une plus longue durée
-        this.arrowClickInProgress = true;
-        setTimeout(() => {
-          this.arrowClickInProgress = false;
-        }, 300);
+    document.addEventListener(
+      "click",
+      (e) => {
+        const arrow = e.target.closest(".event-extension-arrow");
+        if (arrow) {
+          // Définir un flag global avec une plus longue durée
+          this.arrowClickInProgress = true;
+          setTimeout(() => {
+            this.arrowClickInProgress = false;
+          }, 300);
 
-        // S'assurer que l'événement ne se propage pas
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        e.preventDefault();
+          // S'assurer que l'événement ne se propage pas
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          e.preventDefault();
 
-        const isLeft = arrow.classList.contains("left");
-        const cachedData = arrow.getAttribute("data-schedule-data");
+          const isLeft = arrow.classList.contains("left");
+          const cachedData = arrow.getAttribute("data-schedule-data");
 
-        if (cachedData) {
-          try {
-            const scheduleData = JSON.parse(decodeURIComponent(cachedData));
-            this.handleArrowClick(isLeft ? "left" : "right", scheduleData);
-          } catch (error) {
-            console.error("Erreur de parsing des données:", error);
+          if (cachedData) {
+            try {
+              const scheduleData = JSON.parse(decodeURIComponent(cachedData));
+              this.handleArrowClick(isLeft ? "left" : "right", scheduleData);
+            } catch (error) {
+              console.error("Erreur de parsing des données:", error);
+            }
           }
-        }
 
-        return false;
-      }
-    }, true);
-
-    // Clic droit sur les événements (menu contextuel)
-    document.addEventListener("contextmenu", (e) => {
-      const targetElement = e.target;
-      const eventElement =
-        targetElement.closest(".tui-full-calendar-time-schedule") ||
-        targetElement.closest(".event-content") ||
-        targetElement.closest(".tui-full-calendar-weekday-schedule");
-
-      if (eventElement) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        const scheduleId = eventElement.getAttribute("data-schedule-id");
-        if (!scheduleId) {
-          console.warn("Clic droit sur événement sans ID");
           return false;
         }
+      },
+      true
+    );
 
-        console.log("Clic droit sur événement:", scheduleId);
+    // Clic droit sur les événements (menu contextuel)
+    document.addEventListener(
+      "contextmenu",
+      (e) => {
+        const targetElement = e.target;
+        const eventElement =
+          targetElement.closest(".tui-full-calendar-time-schedule") ||
+          targetElement.closest(".event-content") ||
+          targetElement.closest(".tui-full-calendar-weekday-schedule");
 
-        // SOLUTION : Recherche améliorée de l'événement, similaire au double-clic
-        let foundEvent = null;
+        if (eventElement) {
+          e.preventDefault();
+          e.stopPropagation();
 
-        // 1. D'abord, essayer de trouver dans les calendriers spécifiques
-        for (const calId of this.calendarIds) {
-          try {
-            const schedule = this.calendar.getSchedule(
-              scheduleId,
-              calId.toString()
-            );
-            if (schedule) {
-              foundEvent = schedule;
-              break;
-            }
-          } catch (err) {
-            // Ignorer les erreurs et continuer la recherche
+          const scheduleId = eventElement.getAttribute("data-schedule-id");
+          if (!scheduleId) {
+            console.warn("Clic droit sur événement sans ID");
+            return false;
           }
-        }
 
-        // 2. Si rien n'est trouvé, chercher dans tous les événements affichés
-        if (!foundEvent) {
-          try {
-            // Pour les nouveaux événements, leur ID peut être dans l'élément DOM
-            const calendarId = eventElement.getAttribute("data-calendar-id");
-            if (calendarId) {
-              const schedule = this.calendar.getSchedule(scheduleId, calendarId);
+          console.log("Clic droit sur événement:", scheduleId);
+
+          // SOLUTION : Recherche améliorée de l'événement, similaire au double-clic
+          let foundEvent = null;
+
+          // 1. D'abord, essayer de trouver dans les calendriers spécifiques
+          for (const calId of this.calendarIds) {
+            try {
+              const schedule = this.calendar.getSchedule(
+                scheduleId,
+                calId.toString()
+              );
               if (schedule) {
                 foundEvent = schedule;
+                break;
               }
+            } catch (err) {
+              // Ignorer les erreurs et continuer la recherche
             }
-          } catch (err) {
-            // Ignorer les erreurs
           }
-        }
 
-        // 3. En dernier recours, extraire les données des attributs HTML
-        if (!foundEvent && eventElement) {
-          // Récupérer les informations de style pour les couleurs
-          const style = window.getComputedStyle(eventElement);
-          const titleElement = eventElement.querySelector("div");
-
-          // Créer un événement synthétique à partir des données DOM
-          foundEvent = {
-            id: scheduleId,
-            calendarId:
-              eventElement.getAttribute("data-calendar-id") ||
-              document.getElementById("eventCalendar").value,
-            title: titleElement ? titleElement.innerText : "Sans titre",
-            // Récupérer les dates depuis le serveur ou utiliser une approximation
-            start: new Date(),
-            end: new Date(new Date().getTime() + 3600000), // +1 heure par défaut
-            raw: {
-              // Utiliser les couleurs calculées
-              calendarColor: style.borderColor || "#333",
-              categoryColor: style.backgroundColor || "#fff",
-              categoryTextColor: style.color || "#000",
-              categoryId:
-                document.getElementById("eventCategory").value || "1",
-            },
-          };
-
-          // Essayer de récupérer les données complètes via une requête AJAX
-          this.backend.getEvent(
-            scheduleId,
-            foundEvent.calendarId,
-            (error, eventData) => {
-              if (!error && eventData) {
-                // Si on a réussi à récupérer les données, ouvrir le modal avec ces données
-                this.openCloneModal({
-                  title: eventData.title,
-                  start: new Date(eventData.start),
-                  end: new Date(eventData.end),
-                  calendarId: eventData.calendarId,
-                  categoryId: eventData.raw?.categoryId,
-                  raw: eventData.raw || {},
-                });
+          // 2. Si rien n'est trouvé, chercher dans tous les événements affichés
+          if (!foundEvent) {
+            try {
+              // Pour les nouveaux événements, leur ID peut être dans l'élément DOM
+              const calendarId = eventElement.getAttribute("data-calendar-id");
+              if (calendarId) {
+                const schedule = this.calendar.getSchedule(
+                  scheduleId,
+                  calendarId
+                );
+                if (schedule) {
+                  foundEvent = schedule;
+                }
               }
+            } catch (err) {
+              // Ignorer les erreurs
             }
-          );
-        }
+          }
 
-        if (foundEvent) {
-          this.openCloneModal({
-            title: foundEvent.title,
-            start:
-              foundEvent.start instanceof Date
-                ? foundEvent.start
-                : foundEvent.start && foundEvent.start._date
-                ? foundEvent.start._date
-                : new Date(foundEvent.start),
-            end:
-              foundEvent.end instanceof Date
-                ? foundEvent.end
-                : foundEvent.end && foundEvent.end._date
-                ? foundEvent.end._date
-                : new Date(foundEvent.end),
-            calendarId: foundEvent.calendarId,
-            categoryId: foundEvent.raw?.categoryId,
-            raw: foundEvent.raw || {},
-          });
-        } else {
-          console.warn(
-            "Événement non trouvé pour le clic droit:",
-            scheduleId
-          );
-        }
+          // 3. En dernier recours, extraire les données des attributs HTML
+          if (!foundEvent && eventElement) {
+            // Récupérer les informations de style pour les couleurs
+            const style = window.getComputedStyle(eventElement);
+            const titleElement = eventElement.querySelector("div");
 
-        return false;
-      }
-    }, true);
+            // Créer un événement synthétique à partir des données DOM
+            foundEvent = {
+              id: scheduleId,
+              calendarId:
+                eventElement.getAttribute("data-calendar-id") ||
+                document.getElementById("eventCalendar").value,
+              title: titleElement ? titleElement.innerText : "Sans titre",
+              // Récupérer les dates depuis le serveur ou utiliser une approximation
+              start: new Date(),
+              end: new Date(new Date().getTime() + 3600000), // +1 heure par défaut
+              raw: {
+                // Utiliser les couleurs calculées
+                calendarColor: style.borderColor || "#333",
+                categoryColor: style.backgroundColor || "#fff",
+                categoryTextColor: style.color || "#000",
+                categoryId:
+                  document.getElementById("eventCategory").value || "1",
+              },
+            };
+
+            // Essayer de récupérer les données complètes via une requête AJAX
+            this.backend.getEvent(
+              scheduleId,
+              foundEvent.calendarId,
+              (error, eventData) => {
+                if (!error && eventData) {
+                  // Si on a réussi à récupérer les données, ouvrir le modal avec ces données
+                  this.openCloneModal({
+                    title: eventData.title,
+                    start: new Date(eventData.start),
+                    end: new Date(eventData.end),
+                    calendarId: eventData.calendarId,
+                    categoryId: eventData.raw?.categoryId,
+                    raw: eventData.raw || {},
+                  });
+                }
+              }
+            );
+          }
+
+          if (foundEvent) {
+            this.openCloneModal({
+              title: foundEvent.title,
+              start:
+                foundEvent.start instanceof Date
+                  ? foundEvent.start
+                  : foundEvent.start && foundEvent.start._date
+                  ? foundEvent.start._date
+                  : new Date(foundEvent.start),
+              end:
+                foundEvent.end instanceof Date
+                  ? foundEvent.end
+                  : foundEvent.end && foundEvent.end._date
+                  ? foundEvent.end._date
+                  : new Date(foundEvent.end),
+              calendarId: foundEvent.calendarId,
+              categoryId: foundEvent.raw?.categoryId,
+              raw: foundEvent.raw || {},
+            });
+          } else {
+            console.warn(
+              "Événement non trouvé pour le clic droit:",
+              scheduleId
+            );
+          }
+
+          return false;
+        }
+      },
+      true
+    );
 
     // Navigation entre les vues
     document.getElementById("day-view").addEventListener("click", () => {
@@ -656,11 +725,11 @@ class CalendarFrontend {
       const endDate = new Date(
         eventObj.end || new Date(startDate.getTime() + 60 * 60 * 1000)
       );
-    
+
       // Détecte si c'est une sélection all day (vue mois ou eventObj.isAllDay)
       const currentView = this.calendar.getViewName();
       const isAllDay = currentView === "month" || eventObj.isAllDay;
-    
+
       this.openCreateModal(startDate, endDate, isAllDay);
     });
 
@@ -688,7 +757,7 @@ class CalendarFrontend {
             console.error("Erreur lors du déplacement:", error);
             return;
           }
-          // AJOUTER CES LIGNES 
+          // AJOUTER CES LIGNES
           setTimeout(() => {
             this.calendar.render();
           }, 100);
@@ -728,10 +797,13 @@ class CalendarFrontend {
       if (eventId) {
         // D'abord appeler le backend
         this.backend.deleteEvent(eventId, calendarId, (error, response) => {
-          if (!error) {                
-            this.reloadEvents(); 
+          if (!error) {
+            this.reloadEvents();
           } else {
-            console.error("Erreur lors de la suppression de l'événement:", error);
+            console.error(
+              "Erreur lors de la suppression de l'événement:",
+              error
+            );
           }
 
           // Fermer les modals quelle que soit la réponse
@@ -748,76 +820,86 @@ class CalendarFrontend {
     };
 
     // Gestionnaire pour le double-clic (édition d'événement)
-    document.querySelector("#calendar").addEventListener("dblclick", (e) => {
-      // Si l'utilisateur clique sur un événement
-      const eventElement =
-        e.target.closest(".tui-full-calendar-time-schedule") ||
-        e.target.closest(".event-content") ||
-        e.target.closest(".tui-full-calendar-weekday-schedule");
+    document.querySelector("#calendar").addEventListener(
+      "dblclick",
+      (e) => {
+        // Si l'utilisateur clique sur un événement
+        const eventElement =
+          e.target.closest(".tui-full-calendar-time-schedule") ||
+          e.target.closest(".event-content") ||
+          e.target.closest(".tui-full-calendar-weekday-schedule");
 
-      if (!eventElement) return;
+        if (!eventElement) return;
 
-      const scheduleId = eventElement.getAttribute("data-schedule-id");
-      const calendarId = eventElement.getAttribute("data-calendar-id");
+        const scheduleId = eventElement.getAttribute("data-schedule-id");
+        const calendarId = eventElement.getAttribute("data-calendar-id");
 
-      if (!scheduleId) {
-        console.warn("Double-clic sur événement sans ID");
-        return;
-      }
-
-      console.log("Double-clic sur événement:", scheduleId);
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Toujours récupérer directement depuis le backend
-      this.backend.getEvent(scheduleId, calendarId, (error, eventData) => {
-        if (error || !eventData) {
-          console.error("Erreur lors de la récupération des données de l'événement pour édition:", error);
-
-          // Fallback - essayer de récupérer depuis le frontend
-          let foundEvent = null;
-          for (const calId of this.calendarIds) {
-            try {
-              const schedule = this.calendar.getSchedule(scheduleId, calId.toString());
-              if (schedule) {
-                foundEvent = schedule;
-                break;
-              }
-            } catch (err) {
-              // Ignorer les erreurs et continuer
-            }
-          }
-
-          if (foundEvent) {
-            this.openEditModal({
-              id: foundEvent.id,
-              title: foundEvent.title,
-              start:
-                foundEvent.start instanceof Date
-                  ? foundEvent.start
-                  : foundEvent.start && foundEvent.start._date
-                  ? foundEvent.start._date
-                  : new Date(foundEvent.start),
-              end:
-                foundEvent.end instanceof Date
-                  ? foundEvent.end
-                  : foundEvent.end && foundEvent.end._date
-                  ? foundEvent.end._date
-                  : new Date(foundEvent.end),
-              calendarId: foundEvent.calendarId,
-              raw: foundEvent.raw || {},
-            });
-          } else {
-            console.warn("Événement non trouvé pour édition:", scheduleId);
-          }
-
+        if (!scheduleId) {
+          console.warn("Double-clic sur événement sans ID");
           return;
         }
 
-        // Si on a réussi à récupérer les données depuis le backend, ouvrir le modal directement
-        this.openEditModal(eventData);
-      });
-    }, true);
+        console.log("Double-clic sur événement:", scheduleId);
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Toujours récupérer directement depuis le backend
+        this.backend.getEvent(scheduleId, calendarId, (error, eventData) => {
+          if (error || !eventData) {
+            console.error(
+              "Erreur lors de la récupération des données de l'événement pour édition:",
+              error
+            );
+
+            // Fallback - essayer de récupérer depuis le frontend
+            let foundEvent = null;
+            for (const calId of this.calendarIds) {
+              try {
+                const schedule = this.calendar.getSchedule(
+                  scheduleId,
+                  calId.toString()
+                );
+                if (schedule) {
+                  foundEvent = schedule;
+                  break;
+                }
+              } catch (err) {
+                // Ignorer les erreurs et continuer
+              }
+            }
+
+            if (foundEvent) {
+              this.openEditModal({
+                id: foundEvent.id,
+                title: foundEvent.title,
+                start:
+                  foundEvent.start instanceof Date
+                    ? foundEvent.start
+                    : foundEvent.start && foundEvent.start._date
+                    ? foundEvent.start._date
+                    : new Date(foundEvent.start),
+                end:
+                  foundEvent.end instanceof Date
+                    ? foundEvent.end
+                    : foundEvent.end && foundEvent.end._date
+                    ? foundEvent.end._date
+                    : new Date(foundEvent.end),
+                calendarId: foundEvent.calendarId,
+                raw: foundEvent.raw || {},
+              });
+            } else {
+              console.warn("Événement non trouvé pour édition:", scheduleId);
+            }
+
+            return;
+          }
+
+          // Si on a réussi à récupérer les données depuis le backend, ouvrir le modal directement
+          this.openEditModal(eventData);
+        });
+      },
+      true
+    );
   }
 
   /**
@@ -826,59 +908,63 @@ class CalendarFrontend {
    */
   changeView(viewName) {
     console.log(`Changement de vue vers: ${viewName}`);
-    
+
     // Forcer un changement de vue explicite
     this.calendar.changeView(viewName);
-    
+
     // Mettre à jour l'interface
     this.updateViewButtons(viewName);
     this.updateCalendarHeader();
-    
+
     // Forcer le rechargement des événements puis un rendu
     this.reloadEvents();
-    
-    // Forcer un rendu supplémentaire après un court délai
-    setTimeout(() => {
-      console.log(`Rendu forcé après changement de vue: ${viewName}`);
-      this.calendar.render();
-    }, 100);
   }
-  
+
   /**
    * Gère les clics sur les flèches d'extension
    */
   handleArrowClick(direction, scheduleData) {
-    console.log(`Clic sur flèche ${direction} détecté pour l'événement:`, scheduleData);
+    console.log(
+      `Clic sur flèche ${direction} détecté pour l'événement:`,
+      scheduleData
+    );
 
     // Vérification des données minimales requises
     if (!scheduleData || !scheduleData.id || !scheduleData.calendarId) {
-      console.error("Données insuffisantes pour la duplication par flèche:", scheduleData);
+      console.error(
+        "Données insuffisantes pour la duplication par flèche:",
+        scheduleData
+      );
       return;
     }
 
     const dayOffset = direction === "left" ? -1 : 1;
 
     // Récupérer l'événement depuis le backend
-    this.backend.getEvent(scheduleData.id, scheduleData.calendarId, (error, eventData) => {
-      if (error) {
-        console.error("Erreur lors de la récupération des données:", error);
+    this.backend.getEvent(
+      scheduleData.id,
+      scheduleData.calendarId,
+      (error, eventData) => {
+        if (error) {
+          console.error("Erreur lors de la récupération des données:", error);
 
-        // Fallback: utiliser les données disponibles
-        if (scheduleData.start && scheduleData.end) {
-          this.duplicateWithLocalData(scheduleData, dayOffset);
+          // Fallback: utiliser les données disponibles
+          if (scheduleData.start && scheduleData.end) {
+            this.duplicateWithLocalData(scheduleData, dayOffset);
+          }
+          return;
         }
-        return;
-      }
 
-      // Utiliser les données du backend
-      this.duplicateWithBackendData(eventData, dayOffset);
-    });
+        // Utiliser les données du backend
+        this.duplicateWithBackendData(eventData, dayOffset);
+      }
+    );
   }
-  
+
   /**
    * Dupliquer un événement avec les données du backend
    */
-  duplicateWithBackendData(eventData) {
+  duplicateWithBackendData(eventData, dayOffset) {
     // Extraire les dates en tant qu'objets Date
     const startDate = new Date(eventData.start);
     const endDate = new Date(eventData.end);
@@ -903,13 +989,13 @@ class CalendarFrontend {
 
     this.createDuplicateEvent(newEventData);
   }
-  
+
   /**
    * Dupliquer un événement avec les données locales (fallback)
    */
   duplicateWithLocalData(data, dayOffset) {
     // Extraire les dates, en gérant le cas TZDate
-    const getDateFromScheduleDate = function(dateValue) {
+    const getDateFromScheduleDate = function (dateValue) {
       if (dateValue && dateValue._date) return new Date(dateValue._date);
       if (dateValue instanceof Date) return new Date(dateValue);
       return new Date(dateValue);
@@ -922,7 +1008,12 @@ class CalendarFrontend {
     startDate.setDate(startDate.getDate() + dayOffset);
     endDate.setDate(endDate.getDate() + dayOffset);
 
-    console.log("Création d'une copie (fallback) avec dates:", startDate, "à", endDate);
+    console.log(
+      "Création d'une copie (fallback) avec dates:",
+      startDate,
+      "à",
+      endDate
+    );
 
     // Créer le nouvel événement
     const newEventData = {
@@ -938,7 +1029,7 @@ class CalendarFrontend {
 
     this.createDuplicateEvent(newEventData);
   }
-  
+
   /**
    * Créer un événement dupliqué
    */
@@ -949,13 +1040,11 @@ class CalendarFrontend {
         console.error("Erreur lors de la création de la copie:", error);
         return;
       }
-       
+
       this.reloadEvents();
-      // AJOUTER CETTE LIGNE
-      setTimeout(() => this.calendar.render(), 100);
     });
   }
-  
+
   /**
    * Enregistrer un événement (création, modification ou duplication)
    */
@@ -970,7 +1059,8 @@ class CalendarFrontend {
     const isAllDay = document.getElementById("eventAllDay").checked ? 1 : 0;
 
     // Vérifier si c'est un événement dupliqué
-    const isDuplicated = document.getElementById("isDuplicatedEvent")?.value === "true";
+    const isDuplicated =
+      document.getElementById("isDuplicatedEvent")?.value === "true";
 
     // Validation de base
     if (!title) {
@@ -985,7 +1075,7 @@ class CalendarFrontend {
     if (isAllDay) {
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 0, 0);
-    }    
+    }
 
     // Récupérer les couleurs de la catégorie sélectionnée
     let categoryColor = "#FFFFFF";
@@ -993,7 +1083,8 @@ class CalendarFrontend {
     const categorySelect = document.getElementById("eventCategory");
     for (let i = 0; i < categorySelect.options.length; i++) {
       if (categorySelect.options[i].value === categoryId) {
-        categoryColor = categorySelect.options[i].style.backgroundColor || "#FFFFFF";
+        categoryColor =
+          categorySelect.options[i].style.backgroundColor || "#FFFFFF";
         categoryTextColor = categorySelect.options[i].style.color || "#000000";
         break;
       }
@@ -1004,7 +1095,8 @@ class CalendarFrontend {
     const calendarSelect = document.getElementById("eventCalendar");
     for (let i = 0; i < calendarSelect.options.length; i++) {
       if (calendarSelect.options[i].value === calendarId) {
-        calendarColor = calendarSelect.options[i].style.backgroundColor || "#FFFFFF";
+        calendarColor =
+          calendarSelect.options[i].style.backgroundColor || "#FFFFFF";
         break;
       }
     }
@@ -1033,11 +1125,10 @@ class CalendarFrontend {
         console.error("Erreur lors de l'enregistrement:", error);
         return;
       }
-         
+
       // Forcer un rendu complet après sauvegarde
       this.reloadEvents();
-      setTimeout(() => this.calendar.render(), 100);
-      
+
       // Réinitialiser le flag de duplication
       if (document.getElementById("isDuplicatedEvent")) {
         document.getElementById("isDuplicatedEvent").value = "false";
@@ -1050,16 +1141,18 @@ class CalendarFrontend {
       modal.hide();
     });
   }
-  
+
   /**
    * Fonctions pour les modaux
    */
   initializeModals() {
-    this.modal = new bootstrap.Modal(document.getElementById("createEventModal"));
+    this.modal = new bootstrap.Modal(
+      document.getElementById("createEventModal")
+    );
     this.modalTitle = document.getElementById("createEventModalLabel");
     this.editEventId = document.getElementById("editEventId");
     this.deleteEventBtn = document.getElementById("deleteEventBtn");
-    
+
     // Rendre la méthode openCloneModal accessible globalement
     window.openCloneModal = this.openCloneModal.bind(this);
   }
@@ -1068,27 +1161,30 @@ class CalendarFrontend {
     this.modalTitle.textContent = "Créer un événement";
     this.deleteEventBtn.classList.add("d-none");
     this.editEventId.value = "";
-  
+
     const calendarSelect = document.getElementById("eventCalendar");
-  
+
     if (calendarSelect.selectedIndex < 0 && calendarSelect.options.length > 0) {
       calendarSelect.selectedIndex = 0;
     }
     document.getElementById("eventAllDay").checked = isAllDay;
-  
+
     // Si all day, ajuste les heures
     if (isAllDay) {
       const startDate = new Date(start);
       const endDate = new Date(end);
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(23, 59, 0, 0);
-      document.getElementById("eventStart").value = this.formatDateForInput(startDate);
-      document.getElementById("eventEnd").value = this.formatDateForInput(endDate);
+      document.getElementById("eventStart").value =
+        this.formatDateForInput(startDate);
+      document.getElementById("eventEnd").value =
+        this.formatDateForInput(endDate);
     } else {
-      document.getElementById("eventStart").value = this.formatDateForInput(start);
+      document.getElementById("eventStart").value =
+        this.formatDateForInput(start);
       document.getElementById("eventEnd").value = this.formatDateForInput(end);
     }
-  
+
     this.modal.show();
   }
 
@@ -1096,18 +1192,28 @@ class CalendarFrontend {
     console.log("Ouverture du modal d'édition pour:", eventData);
 
     // Toujours récupérer l'événement complet depuis le backend pour avoir les bonnes heures
-    this.backend.getEvent(eventData.id, eventData.calendarId, (error, completeEvent) => {
-      if (error) {
-        console.error("Erreur lors de la récupération des données complètes pour édition:", error);
-        // En cas d'erreur, utiliser les données disponibles en fallback
-        this.setupEditModal(eventData);
-        return;
-      }
+    this.backend.getEvent(
+      eventData.id,
+      eventData.calendarId,
+      (error, completeEvent) => {
+        if (error) {
+          console.error(
+            "Erreur lors de la récupération des données complètes pour édition:",
+            error
+          );
+          // En cas d'erreur, utiliser les données disponibles en fallback
+          this.setupEditModal(eventData);
+          return;
+        }
 
-      // Utiliser les données récupérées du backend (heures exactes)
-      console.log("Données récupérées du backend pour édition:", completeEvent);
-      this.setupEditModal(completeEvent, true);
-    });
+        // Utiliser les données récupérées du backend (heures exactes)
+        console.log(
+          "Données récupérées du backend pour édition:",
+          completeEvent
+        );
+        this.setupEditModal(completeEvent, true);
+      }
+    );
   }
 
   setupEditModal(event, fromBackend = false) {
@@ -1119,10 +1225,18 @@ class CalendarFrontend {
     document.getElementById("eventCalendar").value = event.calendarId;
 
     // Utiliser directement les chaînes ISO pour les inputs
-    if (fromBackend && typeof event.start === "string" && typeof event.end === "string") {
+    if (
+      fromBackend &&
+      typeof event.start === "string" &&
+      typeof event.end === "string"
+    ) {
       // Extraire juste la partie YYYY-MM-DDThh:mm de la chaîne ISO
-      document.getElementById("eventStart").value = this.formatDateForInput(event.start);
-      document.getElementById("eventEnd").value = this.formatDateForInput(event.end);
+      document.getElementById("eventStart").value = this.formatDateForInput(
+        event.start
+      );
+      document.getElementById("eventEnd").value = this.formatDateForInput(
+        event.end
+      );
 
       console.log(
         "Heures ISO utilisées directement:",
@@ -1131,8 +1245,12 @@ class CalendarFrontend {
       );
     } else {
       // Fallback au cas où les dates ne sont pas en format chaîne
-      document.getElementById("eventStart").value = this.formatDateForInput(event.start);
-      document.getElementById("eventEnd").value = this.formatDateForInput(event.end);
+      document.getElementById("eventStart").value = this.formatDateForInput(
+        event.start
+      );
+      document.getElementById("eventEnd").value = this.formatDateForInput(
+        event.end
+      );
     }
 
     // Remplir la catégorie
@@ -1156,24 +1274,33 @@ class CalendarFrontend {
 
     // Si l'événement n'a pas d'ID ou de calendarId, utiliser directement les données disponibles
     if (!eventData.id || !eventData.calendarId) {
-      console.log("Utilisation directe des données disponibles pour la duplication");
+      console.log(
+        "Utilisation directe des données disponibles pour la duplication"
+      );
       this.setupCloneModal(eventData);
       return;
     }
 
     // Récupérer l'événement complet depuis le backend
-    this.backend.getEvent(eventData.id, eventData.calendarId, (error, completeEvent) => {
-      if (error) {
-        console.log("Utilisation des données locales pour la duplication");
-        // Même en cas d'erreur, continuer avec les données disponibles
-        this.setupCloneModal(eventData);
-        return;
-      }
+    this.backend.getEvent(
+      eventData.id,
+      eventData.calendarId,
+      (error, completeEvent) => {
+        if (error) {
+          console.log("Utilisation des données locales pour la duplication");
+          // Même en cas d'erreur, continuer avec les données disponibles
+          this.setupCloneModal(eventData);
+          return;
+        }
 
-      // Utiliser les données récupérées du backend (heures exactes)
-      console.log("Données récupérées du backend pour duplication:", completeEvent);
-      this.setupCloneModal(completeEvent, true);
-    });
+        // Utiliser les données récupérées du backend (heures exactes)
+        console.log(
+          "Données récupérées du backend pour duplication:",
+          completeEvent
+        );
+        this.setupCloneModal(completeEvent, true);
+      }
+    );
   }
 
   setupCloneModal(event, fromBackend = false) {
@@ -1183,7 +1310,9 @@ class CalendarFrontend {
     this.editEventId.value = "";
 
     // Ajouter un indicateur que c'est une duplication
-    const form = document.getElementById("createEventModal").querySelector("form");
+    const form = document
+      .getElementById("createEventModal")
+      .querySelector("form");
     let duplicateFlag = document.getElementById("isDuplicatedEvent");
 
     if (!duplicateFlag) {
@@ -1199,10 +1328,18 @@ class CalendarFrontend {
     document.getElementById("eventCalendar").value = event.calendarId;
 
     // Utiliser directement les chaînes ISO pour les inputs
-    if (fromBackend && typeof event.start === "string" && typeof event.end === "string") {
+    if (
+      fromBackend &&
+      typeof event.start === "string" &&
+      typeof event.end === "string"
+    ) {
       // Extraire juste la partie YYYY-MM-DDThh:mm de la chaîne ISO
-      document.getElementById("eventStart").value = this.formatDateForInput(event.start);
-      document.getElementById("eventEnd").value = this.formatDateForInput(event.end);
+      document.getElementById("eventStart").value = this.formatDateForInput(
+        event.start
+      );
+      document.getElementById("eventEnd").value = this.formatDateForInput(
+        event.end
+      );
 
       console.log(
         "Heures ISO utilisées directement:",
@@ -1211,8 +1348,12 @@ class CalendarFrontend {
       );
     } else {
       // Fallback au cas où les dates ne sont pas en format chaîne
-      document.getElementById("eventStart").value = this.formatDateForInput(event.start);
-      document.getElementById("eventEnd").value = this.formatDateForInput(event.end);
+      document.getElementById("eventStart").value = this.formatDateForInput(
+        event.start
+      );
+      document.getElementById("eventEnd").value = this.formatDateForInput(
+        event.end
+      );
     }
 
     // Remplir la catégorie
@@ -1224,65 +1365,65 @@ class CalendarFrontend {
 
     this.modal.show();
   }
-  
+
   /**
    * Initialise les cases à cocher pour la visibilité des calendriers
    * Cette méthode gère les actions AJAX pour mettre à jour la visibilité
    */
   initializeCalendarCheckboxes() {
     console.log("Initialisation des cases à cocher de calendrier");
-    const checkboxes = document.querySelectorAll('.calendar-checkbox');
-    
-    checkboxes.forEach(checkbox => {
-      checkbox.addEventListener('change', (e) => {
+    const checkboxes = document.querySelectorAll(".calendar-checkbox");
+
+    checkboxes.forEach((checkbox) => {
+      checkbox.addEventListener("change", (e) => {
         const calendarId = e.target.value;
         const isVisible = e.target.checked;
-        
-        console.log(`Changement de visibilité du calendrier ${calendarId} à ${isVisible}`);
-        
-        // IMPORTANT - Mise à jour visuelle immédiate
+
+        console.log(
+          `Changement de visibilité du calendrier ${calendarId} à ${isVisible}`
+        );
+
+        // Mise à jour visuelle immédiate
         this.reloadEvents();
-        
-        // Mettre à jour la base de données via AJAX
-        fetch(this.config.baseUrl + 'ajax-handler.php?action=toggle-calendar-visibility', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body: `calendar_id=${calendarId}&visible=${isVisible ? 1 : 0}`
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (!data.success) {
-            console.error('Erreur lors de la mise à jour de la visibilité:', data.message);
+
+        // Utiliser la méthode du backend 
+        this.backend.toggleCalendarVisibility(calendarId, isVisible, (error,response) => {
+          if (error) {
+            console.error('Erreur lors de la mise à jour de la visibilité:', error.message);
+            // Inverser l'état de la case à cocher en cas d'erreur
             e.target.checked = !isVisible;
-            
-            // Recharger à nouveau en cas d'erreur pour revenir à l'état précédent
             this.reloadEvents();
           }
-        })
-        .catch(error => {
-          console.error('Erreur réseau:', error);
-          e.target.checked = !isVisible;
-          
-          // Recharger à nouveau en cas d'erreur
-          this.reloadEvents();
         });
       });
     });
   }
-  
+
   /**
    * Fonctions d'interface utilisateur
    */
   updateCalendarHeader() {
     const currentDate = this.calendar.getDate();
     const months = [
-      "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-      "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+      "Janvier",
+      "Février",
+      "Mars",
+      "Avril",
+      "Mai",
+      "Juin",
+      "Juillet",
+      "Août",
+      "Septembre",
+      "Octobre",
+      "Novembre",
+      "Décembre",
     ];
     const month = months[currentDate.getMonth()];
     const year = currentDate.getFullYear();
 
-    document.getElementById("calendar-date-header").textContent = `${month} ${year}`;
+    document.getElementById(
+      "calendar-date-header"
+    ).textContent = `${month} ${year}`;
   }
 
   updateViewButtons(viewName) {
@@ -1319,7 +1460,7 @@ class CalendarFrontend {
       });
     });
   }
-  
+
   /**
    * Fonctions utilitaires pour les dates
    */
@@ -1333,14 +1474,18 @@ class CalendarFrontend {
 
     return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
   }
-  
+
   getISOStringFromScheduleDate(scheduleDate) {
     if (!scheduleDate) {
       return this.formatLocalISOString(new Date());
     }
 
     // Gestion des objets TZDate
-    if (scheduleDate && typeof scheduleDate === "object" && scheduleDate._date) {
+    if (
+      scheduleDate &&
+      typeof scheduleDate === "object" &&
+      scheduleDate._date
+    ) {
       return this.formatLocalISOString(scheduleDate._date);
     }
 
@@ -1355,7 +1500,7 @@ class CalendarFrontend {
     console.warn("Format de date non reconnu", scheduleDate);
     return this.formatLocalISOString(new Date());
   }
-  
+
   formatDateForInput(dateValue) {
     if (!dateValue) return "";
 
@@ -1395,15 +1540,3 @@ class CalendarFrontend {
 // Créer directement au chargement du script
 window.calendarApp = new CalendarFrontend();
 console.log("App créée directement");
-
-// Initialiser manuellement après un délai
-setTimeout(function() {
-  if (window.calendarApp) {
-    try {
-      console.log("Tentative d'initialisation forcée");
-      window.calendarApp.initialize();
-    } catch (error) {
-      console.error("ERREUR D'INITIALISATION FORCÉE:", error);
-    }
-  }
-}, 1000);

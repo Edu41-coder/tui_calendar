@@ -3,10 +3,10 @@
  * Point d'entrée dédié aux requêtes AJAX
  */
 
-// Activer la journalisation des erreurs sans affichage
-ini_set('display_errors', 0); // Ne pas afficher les erreurs à l'écran
-ini_set('log_errors', 1);     // Activer la journalisation des erreurs
-error_reporting(E_ALL);       // Rapporter toutes les erreurs
+// TEMPORAIRE: Afficher toutes les erreurs pour le débogage
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
 // Définir le fuseau horaire par défaut
 date_default_timezone_set('Europe/Paris'); // Ou votre fuseau horaire local
@@ -121,6 +121,7 @@ require_once 'models/Calendar.php';
 require_once 'models/Category.php';
 require_once 'controllers/EventController.php';
 require_once 'controllers/UserController.php';
+require_once 'controllers/CalendarController.php';
 
 // Vérifier si les classes sont correctement chargées
 if (!class_exists('EventController')) {
@@ -159,107 +160,14 @@ switch($action) {
         break;
 
     case 'get-event':
-        // Vérifier les paramètres obligatoires
-        if (!isset($_GET['id']) || !isset($_GET['calendarId'])) {
-            sendJsonResponse(['success' => false, 'message' => 'ID d\'événement ou de calendrier manquant']);
-            exit;
-        }
-        
-        $eventId = $_GET['id'];
-        $calendarId = $_GET['calendarId'];
-        
-        // Instancier les modèles nécessaires
-        $eventModel = new Event();
-        $calendarModel = new Calendar();
-        $categoryModel = new Category();
-        
-        // Récupérer l'événement
-        $event = $eventModel->getById($eventId);
-        
-        if (!$event) {
-            sendJsonResponse(['success' => false, 'message' => 'Événement non trouvé']);
-            exit;
-        }
-        
-        // Formater pour le frontend
-        $formattedEvent = formatEventForFrontend($event, $calendarModel, $categoryModel);
-        
-        sendJsonResponse(['success' => true, 'event' => $formattedEvent]);
-        break;
-
-    case 'get-day-events':
-        // Vérification du paramètre de date
-        if (!isset($_GET['date'])) {
-            sendJsonResponse(['success' => false, 'message' => 'Paramètre de date manquant']);
-            exit;
-        }
-        
-        $dateString = $_GET['date'];
-        
-        try {
-            // Convertir la date en format DateTime pour manipulation précise
-            $date = new DateTime($dateString);
-            
-            // Créer la plage pour toute la journée (00:00:00 à 23:59:59)
-            $startDate = clone $date;
-            $startDate->setTime(0, 0, 0);
-            
-            $endDate = clone $date;
-            $endDate->setTime(23, 59, 59);
-            
-            // Log pour debug
-            error_log("Recherche d'événements pour la vue jour: " . $startDate->format('Y-m-d H:i:s') . " à " . $endDate->format('Y-m-d H:i:s'));
-            
-            // Instancier les modèles nécessaires
-            $eventModel = new Event();
-            $calendarModel = new Calendar();
-            $categoryModel = new Category();
-            
-            // Récupérer les événements avec préservation des heures exactes
-            $events = $eventModel->getByDateRange(
-                $startDate->format('Y-m-d H:i:s'),
-                $endDate->format('Y-m-d H:i:s'),
-                true // paramètre pour préserver les heures exactes
-            );
-            
-            // Formater les événements pour le frontend
-            $formattedEvents = [];
-            foreach ($events as $event) {
-                $formattedEvents[] = formatEventForFrontend($event, $calendarModel, $categoryModel);
-            }
-            
-            // Log du nombre d'événements trouvés
-            error_log("Événements trouvés pour la vue jour: " . count($formattedEvents) . " événements");
-            
-            sendJsonResponse($formattedEvents);
-        }
-        catch (Exception $e) {
-            error_log("Erreur lors de la récupération des événements jour: " . $e->getMessage());
-            sendJsonResponse(['success' => false, 'message' => 'Erreur lors de la récupération des événements: ' . $e->getMessage()], 500);
-        }
-        break;
+        $eventController = new EventController();
+        $eventController->getEvent();
+        break;  
+                
 
     case 'toggle-calendar-visibility':
-        // Vérifier les paramètres requis
-        if (!isset($_POST['calendar_id']) || !isset($_POST['visible'])) {
-            sendJsonResponse(['success' => false, 'message' => 'Paramètres manquants']);
-            exit;
-        }
-        
-        $calendarId = (int)$_POST['calendar_id'];
-        $visible = $_POST['visible'] ? 1 : 0;
-        
-        // Instancier le modèle Calendar
-        $calendarModel = new Calendar();
-        
-        // Mettre à jour la visibilité
-        $success = $calendarModel->setVisibility($calendarId, $visible);
-        
-        if ($success) {
-            sendJsonResponse(['success' => true, 'message' => 'Visibilité mise à jour']);
-        } else {
-            sendJsonResponse(['success' => false, 'message' => 'Erreur lors de la mise à jour de la visibilité']);
-        }
+        $calendarController = new CalendarController();
+        $calendarController->toggleCalendarVisibility();
         break;
         
     default:
